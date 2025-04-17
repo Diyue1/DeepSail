@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>远洋导航系统</title>
+    <link rel="stylesheet" href="/DeepSail/styles.css">
+     <!-- 高德地图API（包含Weather插件） -->
+     <script>
+        window._AMapSecurityConfig = {
+            securityJsCode: '57d0aaf7828e40668a25a6bd239440da',
+        }
+        </script>
+        <script src="https://webapi.amap.com/maps?v=2.0&key=97936dbf33c7b24831d89ce6e9adc1b9&plugin=AMap.Weather,AMap.ToolBar,AMap.Scale"></script>
+    </head>
+    <body>
+    <!-- 顶部导航栏 -->
+    <div class="top-navbar">
+        <div class="nav-container">
+            <div class="nav-item" onclick="window.location.href='sindex.html'">主页</div>
+            <div class="nav-item" onclick="window.location.href='2d.html'">2D</div>
+            <div class="nav-item" onclick="window.location.href='3d.html'">3D</div>
+        </div>
+    </div>
+    
+    <div class="data_bodey">
+        <div class="clear"></div>
+        <div class="index_tabs">
+            <div class="inner">
+                
+                <!-- 左侧栏 -->
+                <div class="left_cage">
+                    <!-- 高德地图实景 -->
+                    <div class="dataAllBorder01 cage_cl">
+                        <div class="dataAllBorder02">
+                            <div id="leftMap" class="map"></div>
+                            <div class="map-controls">
+                                <button id="switchToSatellite" class="map-btn">卫星图</button>
+                                <button id="switchToRoadmap" class="map-btn">路网图</button>
+                                <button id="locateShip" class="map-btn">定位船舶</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 滚动的航线信息 -->
+                    <div class="dataAllBorder01 cage_cl">
+                        <div class="dataAllBorder02">
+                            <div class="route_scroll_container">
+                                <div class="route_scroll_box">
+                                    <!-- 航线信息内容 -->
+                                    <div class="route_scroll">
+                                        <div class="scroll_top">
+                                            <span class="scroll_title">航线更新</span>
+                                            <span class="scroll_level scroll_level01">重要</span>
+                                            <span class="scroll_timer">17-09-13/9:52</span>
+                                        </div>
+                                        <div class="route_cage">
+                                            <p><label>当前位置</label>：东经 121.49° 北纬 31.24°</p>
+                                            <p><label>下一航点</label>：东经 122.12° 北纬 30.56°</p>
+                                            <p><label>预计到达</label>：2023-05-15 14:30</p>
+                                        </div>
+                                    </div>
+                                    <div class="route_scroll">
+                                        <div class="scroll_top">
+                                            <span class="scroll_title">气象预警</span>
+                                            <span class="scroll_level scroll_level02">注意</span>
+                                            <span class="scroll_timer">17-09-13/10:15</span>
+                                        </div>
+                                        <div class="route_cage">
+                                            <p><label>预警区域</label>：东海海域</p>
+                                            <p><label>预警类型</label>：6级大风</p>
+                                            <p><label>影响时间</label>：2023-05-15 13:00至18:00</p>
+                                        </div>
+                                    </div>
+                                    <div class="route_scroll">
+                                        <div class="scroll_top">
+                                            <span class="scroll_title">航线优化</span>
+                                            <span class="scroll_level scroll_level03">提示</span>
+                                            <span class="scroll_timer">17-09-13/10:30</span>
+                                        </div>
+                                        <div class="route_cage">
+                                            <p><label>优化原因</label>：避开渔船密集区</p>
+                                            <p><label>新航点</label>：东经 121.78° 北纬 30.89°</p>
+                                            <p><label>预计延迟</label>：约15分钟</p>
+                                        </div>
+                                    </div>
+                                    <div class="route_scroll">
+                                        <div class="scroll_top">
+                                            <span class="scroll_title">设备状态</span>
+                                            <span class="scroll_level scroll_level03">正常</span>
+                                            <span class="scroll_timer">17-09-13/11:00</span>
+                                        </div>
+                                        <div class="route_cage">
+                                            <p><label>GPS</label>：信号良好</p>
+                                            <p><label>AIS</label>：正常运行</p>
+                                            <p><label>雷达</label>：无异常</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+    
+                <!-- 中间栏：高德地图 -->
+                <div class="center_cage">
+                    <!-- 增大地图区域 -->
+                    <div class="dataAllBorder01 cage_cl center-map-container">
+                        <div class="dataAllBorder02">
+                            <div class="map_title_box" style="height: 40px;">
+                                <div class="map_title_innerbox">
+                                    <div class="map_title">海上航线监测系统</div>
+                                </div>
+                            </div>
+                            <div id="centerMap" class="map"></div>
+                            <div class="map_tool_outbox">
+                                <span class="map_tool" title="全图" onclick="resetMapView()">
+                                    <a class="map_tool_inner"></a>
+                                </span>
+                                <span class="map_tool" title="放大" onclick="zoomIn()">
+                                    <a class="map_tool_inner" style="background-position-x:-36px"></a>
+                                </span>
+                                <span class="map_tool" title="缩小" onclick="zoomOut()">
+                                    <a class="map_tool_inner" style="background-position-x:-72px"></a>
+                                </span>
+                                <span class="map_tool" title="清除航线" onclick="clearPolyline()">
+                                    <a class="map_tool_inner" style="background-position-x:-144px"></a>
+                                </span>
+                                <input type="text" id="txtCoord" placeholder="点击地图获取坐标" readonly>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- 缩小航线数据区域 -->
+                    <div class="dataAllBorder01 cage_cl route-data-container">
+                        <div class="dataAllBorder02">
+                            <div class="map_title_box" style="height: 30px;">
+                                <div class="map_title_innerbox">
+                                    <div class="map_titl">航线坐标数据</div>
+                                </div>
+                            </div>
+                            <div class="route-select-container">
+                                <div class="route-select-group">
+                                    <label for="startPort">起点：</label>
+                                    <input type="text" id="startPort" placeholder="输入起点">
+                                </div>
+                                <div class="route-select-group">
+                                    <label for="endPort">终点：</label>
+                                    <input type="text" id="endPort" placeholder="输入终点">
+                                </div>
+                                <button id="loadRouteBtn" class="map-btn">加载航线</button>
+                            </div>                            
+                            <div class="route-data-scroll">
+                                <table class="route-data-table">
+                                    <thead>
+                                        <tr>
+                                            <th width="15%">航点</th>
+                                            <th width="42.5%">经度</th>
+                                            <th width="42.5%">纬度</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="routeData"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 右侧栏（天气和港口信息） -->
+                <div class="right_cage">
+                    <!-- 天气预报（使用高德AMap.Weather插件） -->
+                    <div class="dataAllBorder01 cage_cl">
+                        <div class="dataAllBorder02">
+                            <div class="weather_header">
+                                <span class="weather_title">天气预报</span>
+                                <span class="weather_update">更新时间: <span id="weatherTime">--</span></span>
+                            </div>
+                            <div class="weather_content">
+                                <div class="weather_main">
+                                    <div class="weather_icon">
+                                        <img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='40' fill='none' stroke='%23ffd43b' stroke-width='8'/><circle cx='50' cy='50' r='30' fill='none' stroke='%23ffd43b' stroke-width='8' stroke-dasharray='15,10'/></svg>" alt="天气" id="weatherIcon">
+                                    </div>
+                                    <div class="weather_info">
+                                        <div class="weather_temp" id="weatherTemp">--°C</div>
+                                        <div class="weather_desc" id="weatherDesc">--</div>
+                                        <div class="weather_error" id="weatherError"></div>
+                                    </div>
+                                </div>
+                                <div class="weather_details">
+                                    <div class="weather_item">
+                                        <span class="weather_label">能见度:</span>
+                                        <span class="weather_value" id="weatherVisibility">--</span>
+                                    </div>
+                                    <div class="weather_item">
+                                        <span class="weather_label">气压:</span>
+                                        <span class="weather_value" id="weatherPressure">-- hPa</span>
+                                    </div>
+                                    <div class="weather_item">
+                                        <span class="weather_label">湿度:</span>
+                                        <span class="weather_value" id="weatherHumidity">--%</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 风向风速（使用高德AMap.Weather数据） -->
+                    <div class="dataAllBorder01 cage_cl">
+                        <div class="dataAllBorder02">
+                            <div class="wind_header">
+                                <span class="wind_title">风向风速监测</span>
+                                <span class="wind_update">实时更新</span>
+                            </div>
+                            <div class="wind_content">
+                                <div class="wind_direction">
+                                    <div class="wind_compass">
+                                        <div class="compass_arrow" id="windArrow"></div>
+                                    </div>
+                                    <div class="wind_info">
+                                        <div class="wind_value" id="windDirection">--</div>
+                                        <div class="wind_degree" id="windDegree">--°</div>
+                                    </div>
+                                </div>
+                                <div class="wind_speed">
+                                    <div class="speed_meter">
+                                        <div class="meter_needle" id="speedNeedle"></div>
+                                    </div>
+                                    <div class="speed_info">
+                                        <div class="speed_value" id="windSpeed">--</div>
+                                        <div class="speed_unit">节</div>
+                                    </div>
+                                </div>
+                                <div class="wind_wave">
+                                    <div class="wave_icon">
+                                        <img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 50'><path d='M0 25 Q25 15 50 25 T100 25' fill='none' stroke='%233498db' stroke-width='3'/><path d='M0 35 Q25 25 50 35 T100 35' fill='none' stroke='%233498db' stroke-width='3'/></svg>" alt="浪高">
+                                    </div>
+                                    <div class="wave_info">
+                                        <div class="wave_value">--</div>
+                                        <div class="wave_unit">米</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+    
+                    <!-- 港口信息 -->
+                    <div class="dataAllBorder01 cage_cl">
+                        <div class="dataAllBorder02">
+                            <div class="port_header">
+                                <span class="port_title">港口信息</span>
+                                <div class="port_switch">
+                                    <button class="port_btn port_btn_active" data-port="shanghai">上海港</button>
+                                    <button class="port_btn" data-port="ningbo">宁波港</button>
+                                    <button class="port_btn" data-port="qingdao">青岛港</button>
+                                </div>
+                            </div>
+                            <div class="port_content port_shanghai active">
+                                <div class="port_info">
+                                    <p><label>港口名称</label>: 上海港</p>
+                                    <p><label>地理位置</label>: 东经 121.49° 北纬 31.24°</p>
+                                    <p><label>潮汐情况</label>: 涨潮 14:30 | 落潮 20:45</p>
+                                    <p><label>水深</label>: 主航道 12-15米</p>
+                                    <p><label>泊位情况</label>: 15/20 (占用/总数)</p>
+                                    <p><label>预计等待时间</label>: 2-4小时</p>
+                                </div>
+                            </div>
+                            <div class="port_content port_ningbo">
+                                <div class="port_info">
+                                    <p><label>港口名称</label>: 宁波港</p>
+                                    <p><label>地理位置</label>: 东经 121.71° 北纬 29.86°</p>
+                                    <p><label>潮汐情况</label>: 涨潮 13:15 | 落潮 19:30</p>
+                                    <p><label>水深</label>: 主航道 18-22米</p>
+                                    <p><label>泊位情况</label>: 22/30 (占用/总数)</p>
+                                    <p><label>预计等待时间</label>: 1-3小时</p>
+                                </div>
+                            </div>
+                            <div class="port_content port_qingdao">
+                                <div class="port_info">
+                                    <p><label>港口名称</label>: 青岛港</p>
+                                    <p><label>地理位置</label>: 东经 120.32° 北纬 36.07°</p>
+                                    <p><label>潮汐情况</label>: 涨潮 15:45 | 落潮 21:15</p>
+                                    <p><label>水深</label>: 主航道 14-17米</p>
+                                    <p><label>泊位情况</label>: 18/25 (占用/总数)</p>
+                                    <p><label>预计等待时间</label>: 3-5小时</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<!-- 隐藏的天气地图容器（用于初始化天气插件） -->
+<div id="weatherMap" style="display:none;"></div>
+
+<script src="/DeepSail/script.js"></script>
+</body>
+</html>

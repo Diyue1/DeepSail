@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>海上航线监测系统 - 2D视图</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            font-family: "Microsoft YaHei", Arial, sans-serif;
+        }
+
+        #home-button { 
+            position: absolute; 
+            top: 5px; 
+            left: 130px; 
+            z-index: 1; 
+            background-color: #f9f9fa(255, 255, 255); 
+            border: 1px solid #ccc; 
+            padding: 10px 15px; 
+            border-radius: 5px; 
+            cursor: pointer; 
+            text-decoration: none; 
+            color: black; 
+        }
+        
+        .center_cage {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+        
+        .cage_cl {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        .dataAllBorder01 {
+            border: 1px solid #ccc;
+            background-color: #fefefe;
+            border-radius: 4px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            margin: 5px;
+        }
+        
+        .dataAllBorder02 {
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            height: 100%;
+        }
+        
+        .center-map-container {
+            flex: 2;
+            min-height: 60%;
+        }
+        
+        .route-data-container {
+            flex: 1;
+            min-height: 30%;
+        }
+        
+        .map_title_box {
+            background: linear-gradient(to bottom, #f8f8f8, #e8e8e8);
+            border-bottom: 1px solid #ddd;
+            padding: 0 10px;
+            display: flex;
+            align-items: center;
+        }
+        
+        .map_title_innerbox {
+            display: flex;
+            align-items: center;
+        }
+        
+        .map_title, .map_titl {
+            font-weight: bold;
+            color: #333;
+            font-size: 14px;
+        }
+        
+        #centerMap {
+            width: 100%;
+            height: calc(100% - 80px);
+        }
+        
+        .map_tool_outbox {
+            display: flex;
+            padding: 5px 10px;
+            align-items: center;
+            border-top: 1px solid #eee;
+            background-color: #ffffff;
+        }
+        
+        .map_tool {
+            display: inline-block;
+            margin-right: 10px;
+            cursor: pointer;
+        }
+        
+        .map_tool_inner {
+            display: block;
+            width: 18px;
+            height: 18px;
+            background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAABGdBTUEAALGPC/xhBQAAACBjSFJNAAB6JgAAgIQAAPoAAACA6AAAdTAAAOpgAAA6mAAAF3CculE8AAAABmJLR0QA/wD/AP+gvaeTAAAACXBIWXMAAAsTAAALEwEAmpwYAAAAB3RJTUUH5AkFAy0UxJX5FgAABFZJREFUWMPtl1uIVVUYhr9vrb3PmTkzOjqO5qVJx8Q0L6VlF0vJIC8hQfRgFJhQEEUQQVAPvURRD0FBEAQ9FARBEBT0UEEQFEVQEEVRFEXRQ0VRFEVRFEVRFEXRzP6/HvY+Z86cOTNnRgN7YMM+a6+1v/X/3/7Xv9ZeB/7f5QZ6QVVHAUuB8cAo4CxwBNgKfKmqZwZzUzOQxqq6FHgGmFjQ5BTwIvC8qnYP5KZeAVR1PPA1MLWfPvuA+ap6vL+AvQK8Qm/4XuBd4DvgD2A0MA1YAMwq9J0JvA4s7QugF0BVJwA7gZGF5k+Alaq6v5e+twPrgJsKzWuAVaoa+gLoDfB+YVwX8ICqft7XzKr6EfAQsKXQvBKYo6pb+gJ4sND2JbC6P/FCqeo7wKZC8/3FPr0CqOoU4PZC0/vA2YEI5Pqg0HYnML7YqQigwCxgWKHtq8EI5NoJHCmMZxU7FQHmF9p+Bn4ZgkAXsK3QNrfYqQgwq9D2w1AEcn1faJtR7FAEmFpo+2WIAkWAqcUORYCJhbbfhijwW6FtQrFDEWBsoe3EEAVOFNrGFDsUAUYX2k4NUeBUoW1UsUMRYESh7fQQBU4W2kYUOxQBugptw4coMKzQ1lXsUAQ4X2gbM0SB4nq6UOxQBDhWaJs8RIHJhbajxQ5FgAOFtmuBK4cgcF2h7UCxQxGgHdhTaJs3BIH5hbbtxQ5FgA3A74W2e4DhAxEYDtxdaDsIbCx2KgJ0Au8V2q4CHgXcZQRywKPA1YX2t4DOYqdeAVT1KPBWoXkpsAK4FEEHrABuK7RvBD5S1dAXQK83UdWXgY1Aq9D8ALAOuKXQ1gLeBJ5S1dAXQJ83UtUzwFLgM+BC4dRc4HlgCXAF0AF8AqxW1T/7A+jzpqp6UFUXA3cB64F9wFngF2A98ICqLlLVQ/0B/A1F5QZ3S3WwJAAAAABJRU5ErkJggg==');
+            background-repeat: no-repeat;
+        }
+        
+        #txtCoord {
+            flex: 1;
+            margin-left: 10px;
+            padding: 5px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+        }
+        
+        .route-select-container {
+            display: flex;
+            padding: 10px;
+            align-items: center;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .route-select-group {
+            display: flex;
+            align-items: center;
+            margin-right: 10px;
+        }
+        
+        .route-select-group label {
+            margin-right: 5px;
+            font-size: 13px;
+        }
+        
+        .route-select-group input {
+            padding: 5px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            width: 150px;
+        }
+        
+        .map-btn {
+            padding: 5px 10px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        
+        .map-btn:hover {
+            background-color: #45a049;
+        }
+        
+        .route-data-scroll {
+            height: calc(100% - 70px);
+            overflow-y: auto;
+        }
+        
+        .route-data-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .route-data-table th, .route-data-table td {
+            padding: 8px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+            font-size: 13px;
+        }
+        
+        .route-data-table th {
+            background-color: #fafafb;
+        }
+    </style>
+</head>
+<body>
+    <a href="sindex.html" id="home-button">首页</a>
+    <div class="center_cage">
+        <!-- 增大地图区域 -->
+        <div class="dataAllBorder01 cage_cl center-map-container">
+            <div class="dataAllBorder02">
+                <div class="map_title_box" style="height: 40px;">
+                    <div class="map_title_innerbox">
+                        <div class="map_title">海上航线监测系统</div>
+                    </div>
+                </div>
+                <div id="centerMap" class="map"></div>
+                <div class="map_tool_outbox">
+                    <span class="map_tool" title="全图" onclick="resetMapView()">
+                        <a class="map_tool_inner"></a>
+                    </span>
+                    <span class="map_tool" title="放大" onclick="zoomIn()">
+                        <a class="map_tool_inner" style="background-position-x:-36px"></a>
+                    </span>
+                    <span class="map_tool" title="缩小" onclick="zoomOut()">
+                        <a class="map_tool_inner" style="background-position-x:-72px"></a>
+                    </span>
+                    <span class="map_tool" title="清除航线" onclick="clearPolyline()">
+                        <a class="map_tool_inner" style="background-position-x:-144px"></a>
+                    </span>
+                    <input type="text" id="txtCoord" placeholder="点击地图获取坐标" readonly>
+                </div>
+            </div>
+        </div>
+        <!-- 缩小航线数据区域 -->
+        <div class="dataAllBorder01 cage_cl route-data-container">
+            <div class="dataAllBorder02">
+                <div class="map_title_box" style="height: 30px;">
+                    <div class="map_title_innerbox">
+                        <div class="map_titl">航线坐标数据</div>
+                    </div>
+                </div>
+                <div class="route-select-container">
+                    <div class="route-select-group">
+                        <label for="startPort">起点：</label>
+                        <input type="text" id="startPort" placeholder="输入起点">
+                    </div>
+                    <div class="route-select-group">
+                        <label for="endPort">终点：</label>
+                        <input type="text" id="endPort" placeholder="输入终点">
+                    </div>
+                    <button id="loadRouteBtn" class="map-btn">加载航线</button>
+                </div>                            
+                <div class="route-data-scroll">
+                    <table class="route-data-table">
+                        <thead>
+                            <tr>
+                                <th width="15%">航点</th>
+                                <th width="42.5%">经度</th>
+                                <th width="42.5%">纬度</th>
+                            </tr>
+                        </thead>
+                        <tbody id="routeData"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 高德地图JS API -->
+    <script src="https://webapi.amap.com/maps?v=2.0&key=97936dbf33c7b24831d89ce6e9adc1b9&plugin=AMap.Weather,AMap.ToolBar,AMap.Scale"></script>
+    <script>
+        // 初始化地图
+        let map = new AMap.Map('centerMap', {
+            zoom: 5,  // 初始缩放级别
+            center: [116.397428, 39.90923],  // 初始中心点
+            viewMode: '2D'
+        });
+
+        // 地图点击事件
+        map.on('click', function(e) {
+            document.getElementById('txtCoord').value = e.lnglat.getLng() + ', ' + e.lnglat.getLat();
+        });
+
+        // 地图工具函数
+        function resetMapView() {
+            map.setZoomAndCenter(5, [116.397428, 39.90923]);
+        }
+
+        function zoomIn() {
+            map.zoomIn();
+        }
+
+        function zoomOut() {
+            map.zoomOut();
+        }
+
+        function clearPolyline() {
+            map.clearMap();
+            document.getElementById('routeData').innerHTML = '';
+        }
+    </script>
+    <script src="/DeepSail/script.js"></script>
+</body>
+</html>

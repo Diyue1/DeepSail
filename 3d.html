@@ -1,0 +1,939 @@
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>航线追踪</title>
+    <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+    <link href="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.css" rel="stylesheet">
+    <script src="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.js"></script>
+    <style>
+        body { margin: 0; padding: 0; }
+        #map { position: absolute; top: 0; bottom: 0; width: 100%; }
+        #home-button { 
+            position: absolute; 
+            top: 20px; 
+            left: 20px; 
+            z-index: 1; 
+            background-color: white; 
+            border: 1px solid #ccc; 
+            padding: 10px 15px; 
+            border-radius: 5px; 
+            cursor: pointer; 
+            text-decoration: none; 
+            color: black; 
+        }
+        #route-input {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 1;
+            background-color: white;
+            padding: 10px;
+            border-radius: 5px;
+            max-width: 300px;
+        }
+        #file-input {
+            display: none;
+        }
+        #wave-file-input {
+            display: none;
+        }
+        #file-label, #wave-file-label {
+            display: inline-block;
+            padding: 5px 10px;
+            background-color: #f0f0f0;
+            border-radius: 3px;
+            cursor: pointer;
+            margin-top: 5px;
+        }
+        #start-button {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1;
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .route-info {
+            position: absolute;
+            bottom: 80px;
+            left: 20px;
+            z-index: 1;
+            background-color: rgba(255, 255, 255, 0.8);
+            padding: 10px;
+            border-radius: 5px;
+            max-width: 300px;
+        }
+        #loading-indicator {
+            display: none;
+            margin-left: 10px;
+            color: #555;
+        }
+        #debug-info {
+            position: absolute;
+            top: 100px;
+            right: 20px;
+            z-index: 1;
+            background-color: rgba(255, 255, 255, 0.8);
+            padding: 10px;
+            border-radius: 5px;
+            max-width: 300px;
+            display: none;
+        }
+        #wave-data-section {
+            margin-top: 10px;
+            border-top: 1px solid #ccc;
+            padding-top: 10px;
+        }
+        #toggle-waves-button {
+            margin-top: 5px;
+            padding: 5px 10px;
+            background-color: #1E90FF;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+
+        /* 海洋控制按钮样式 */
+        #ocean-controls {
+            margin-top: 10px;
+            border-top: 1px solid #ccc;
+            padding-top: 10px;
+        }
+        #ocean-controls button {
+            margin: 2px;
+            padding: 5px 8px;
+            background-color: #1E90FF;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        #ocean-controls button:hover {
+            background-color: #0066CC;
+        }
+        #ocean-controls button.active {
+            background-color: #004080;
+            font-weight: bold;
+        }
+        
+        /* 海洋数据标记样式 */
+        .current-marker {
+            width: 20px;
+            height: 20px;
+            background-color: rgba(0, 100, 255, 0.7);
+            border-radius: 50%;
+            border: 1px solid white;
+        }
+        .wind-marker {
+            font-size: 18px;
+            text-align: center;
+        }
+        .wave-marker {
+            font-size: 20px;
+            text-align: center;
+        }
+        .typhoon-marker {
+            width: 24px;
+            height: 24px;
+            background-color: rgba(255, 0, 0, 0.7);
+            border-radius: 50%;
+            border: 2px solid white;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 0.7; }
+            50% { transform: scale(1.2); opacity: 1; }
+            100% { transform: scale(1); opacity: 0.7; }
+        }
+    </style>
+</head>
+<body>
+    <a href="sindex.html" id="home-button">首页</a>
+    
+    <div id="route-input">
+        <input type="text" id="start-point" placeholder="起点">
+        <input type="text" id="end-point" placeholder="终点">
+        <button onclick="loadRoute()">确定航线</button>
+        <span id="loading-indicator">加载中...</span>
+
+        <!-- 海洋数据控制区 -->
+        <div id="ocean-controls">
+            <button id="ocean-currents-btn" onclick="toggleOceanCurrents()">洋流</button>
+            <button id="wind-direction-btn" onclick="toggleWindDirection()">风向</button>
+            <button id="wave-height-btn" onclick="toggleWaveHeight()">海浪</button>
+            <button id="typhoon-info-btn" onclick="toggleTyphoonInfo()">台风</button>
+        </div>
+    </div>
+
+    <button id="start-button" style="display:none;" onclick="startShipAnimation()">启动航行</button>
+    
+    <div class="route-info" id="route-info" style="display:none;">
+        <h3>航线信息</h3>
+        <div id="route-details"></div>
+    </div>
+
+    <div id="debug-info"></div>
+
+    <div id="map"></div>
+
+    <script>
+        // Mapbox配置
+        mapboxgl.accessToken = 'pk.eyJ1IjoieXpmZGVmbTUiLCJhIjoiY202M2pvbXE1MWF0MjJ3b2xjdm91OWt0biJ9.5MW_rT9cyvGDt2qAt-yAgg';
+        
+        const map = new mapboxgl.Map({
+            container: 'map',
+            style: 'mapbox://styles/mapbox/satellite-streets-v12',
+            center: [0, 0],
+            zoom: 2.5,
+            pitch: 45,
+            projection: 'globe'
+        });
+
+        // 调试模式开关
+        const DEBUG_MODE = false;
+
+        // 全局变量
+        let routeCoordinates = [];
+        let routeMetadata = {};
+        let shipMarker = null;
+        let routeSource = null;
+        let animationFrame = null;
+        let animationSpeed = 100; // 毫秒/点
+        let wayPointMarkers = []; // 存储航点标记的数组
+        let waveMarkers = []; // 存储风浪标记的数组
+        let currentMarkers = []; // 存储洋流标记的数组
+        let windMarkers = []; // 存储风向标记的数组
+        let typhoonMarkers = []; // 存储台风标记的数组
+        
+        // 海洋数据状态
+        let oceanData = {
+            currentsVisible: false,
+            windVisible: false,
+            wavesVisible: false,
+            typhoonVisible: false
+        };
+
+        // 预定义的航线映射表
+        const ROUTE_MAPPINGS = {
+            "广州港-日本福冈港": "guangzhou-japan",
+            "上海港-智利瓦斯科港": "shanghai-southamerica"
+        };
+
+        // 海洋数据 - 实际应用中可以从API获取
+        const OCEAN_DATA = {
+            // 洋流数据 [经度, 纬度, 流速(节), 方向(度), 名称]
+            currents: [
+                [135.0, 32.0, 2.5, 45, "黑潮"],
+                [140.0, 30.0, 1.8, 60, "北赤道暖流"],
+                [150.0, 25.0, 2.0, 70, "日本暖流"],
+                [130.0, 20.0, 1.5, 30, "台湾暖流"],
+                [120.0, 15.0, 1.2, 20, "南海暖流"],
+                [160.0, 10.0, 0.8, 10, "赤道逆流"]
+            ],
+            
+            // 风向数据 [经度, 纬度, 风向(度), 风速(节)]
+            winds: [
+                [130.0, 35.0, 90, 15],
+                [135.0, 32.0, 95, 18],
+                [140.0, 30.0, 100, 20],
+                [145.0, 28.0, 105, 22],
+                [125.0, 25.0, 85, 12],
+                [150.0, 20.0, 110, 25]
+            ],
+            
+            // 浪高数据 [经度, 纬度, 浪高(米), 周期(秒)]
+            waves: [
+                [132.0, 34.0, 2.5, 8],
+                [137.0, 31.0, 3.0, 9],
+                [142.0, 28.0, 3.5, 10],
+                [127.0, 25.0, 2.0, 7],
+                [147.0, 22.0, 4.0, 11],
+                [152.0, 19.0, 4.5, 12]
+            ],
+            
+            // 台风数据 [经度, 纬度, 名称, 等级, 风速(节), 移动方向(度), 移动速度(节)]
+            typhoons: [
+            ]
+        };
+
+        // 调试信息函数
+        function debugLog(message) {
+            if (DEBUG_MODE) {
+                console.log(message);
+                const debugDiv = document.getElementById('debug-info');
+                debugDiv.style.display = 'block';
+                debugDiv.innerHTML += `<p>${message}</p>`;
+            }
+        }
+
+        // 清除调试信息
+        function clearDebugLog() {
+            if (DEBUG_MODE) {
+                document.getElementById('debug-info').innerHTML = '';
+            }
+        }
+
+        // 清除所有航点标记
+        function clearWaypoints() {
+            wayPointMarkers.forEach(marker => marker.remove());
+            wayPointMarkers = [];
+        }
+
+        // 清除所有洋流标记
+        function clearCurrentMarkers() {
+            currentMarkers.forEach(marker => marker.remove());
+            currentMarkers = [];
+        }
+
+        // 清除所有风向标记
+        function clearWindMarkers() {
+            windMarkers.forEach(marker => marker.remove());
+            windMarkers = [];
+        }
+
+        // 清除所有风浪标记
+        function clearWaveMarkers() {
+            waveMarkers.forEach(marker => marker.remove());
+            waveMarkers = [];
+        }
+
+        // 清除所有台风标记
+        function clearTyphoonMarkers() {
+            typhoonMarkers.forEach(marker => marker.remove());
+            typhoonMarkers = [];
+        }
+
+        // 切换洋流显示
+        function toggleOceanCurrents() {
+            oceanData.currentsVisible = !oceanData.currentsVisible;
+            document.getElementById('ocean-currents-btn').classList.toggle('active');
+            
+            if (oceanData.currentsVisible) {
+                addCurrentMarkers();
+            } else {
+                clearCurrentMarkers();
+            }
+        }
+
+        // 切换风向显示
+        function toggleWindDirection() {
+            oceanData.windVisible = !oceanData.windVisible;
+            document.getElementById('wind-direction-btn').classList.toggle('active');
+            
+            if (oceanData.windVisible) {
+                addWindMarkers();
+            } else {
+                clearWindMarkers();
+            }
+        }
+
+        // 切换浪高显示
+        function toggleWaveHeight() {
+            oceanData.wavesVisible = !oceanData.wavesVisible;
+            document.getElementById('wave-height-btn').classList.toggle('active');
+            
+            if (oceanData.wavesVisible) {
+                addWaveMarkers();
+            } else {
+                clearWaveMarkers();
+            }
+        }
+
+        // 切换台风信息显示
+        function toggleTyphoonInfo() {
+            oceanData.typhoonVisible = !oceanData.typhoonVisible;
+            document.getElementById('typhoon-info-btn').classList.toggle('active');
+            
+            if (oceanData.typhoonVisible) {
+                addTyphoonMarkers();
+            } else {
+                clearTyphoonMarkers();
+            }
+        }
+
+        // 添加洋流标记
+        function addCurrentMarkers() {
+            clearCurrentMarkers();
+            
+            OCEAN_DATA.currents.forEach(current => {
+                const [lng, lat, speed, direction, name] = current;
+                
+                // 创建标记元素
+                const el = document.createElement('div');
+                el.className = 'current-marker';
+                
+                // 创建箭头指示方向
+                const arrow = document.createElement('div');
+                arrow.style.width = '0';
+                arrow.style.height = '0';
+                arrow.style.borderLeft = '6px solid transparent';
+                arrow.style.borderRight = '6px solid transparent';
+                arrow.style.borderBottom = `12px solid rgba(0, 100, 255, 0.8)`;
+                arrow.style.position = 'absolute';
+                arrow.style.top = '-12px';
+                arrow.style.left = '4px';
+                arrow.style.transform = `rotate(${direction}deg)`;
+                arrow.style.transformOrigin = 'center 12px';
+                
+                el.appendChild(arrow);
+                
+                // 创建标记
+                const marker = new mapboxgl.Marker({
+                    element: el,
+                    anchor: 'center'
+                })
+                .setLngLat([lng, lat])
+                .setPopup(new mapboxgl.Popup().setHTML(`
+                    <h4>洋流信息</h4>
+                    <p><strong>名称:</strong> ${name}</p>
+                    <p><strong>流速:</strong> ${speed} 节</p>
+                    <p><strong>方向:</strong> ${direction}°</p>
+                `))
+                .addTo(map);
+                
+                currentMarkers.push(marker);
+            });
+            
+            debugLog(`添加了${currentMarkers.length}个洋流标记`);
+        }
+
+        // 添加风向标记
+        function addWindMarkers() {
+            clearWindMarkers();
+            
+            OCEAN_DATA.winds.forEach(wind => {
+                const [lng, lat, direction, speed] = wind;
+                
+                // 创建标记元素
+                const el = document.createElement('div');
+                el.className = 'wind-marker';
+                el.innerHTML = '🌬️';
+                el.style.transform = `rotate(${direction}deg)`;
+                
+                // 创建标记
+                const marker = new mapboxgl.Marker({
+                    element: el,
+                    anchor: 'center'
+                })
+                .setLngLat([lng, lat])
+                .setPopup(new mapboxgl.Popup().setHTML(`
+                    <h4>风向信息</h4>
+                    <p><strong>风向:</strong> ${direction}°</p>
+                    <p><strong>风速:</strong> ${speed} 节</p>
+                `))
+                .addTo(map);
+                
+                windMarkers.push(marker);
+            });
+            
+            debugLog(`添加了${windMarkers.length}个风向标记`);
+        }
+
+        // 添加浪高标记
+        function addWaveMarkers() {
+            clearWaveMarkers();
+            
+            OCEAN_DATA.waves.forEach(wave => {
+                const [lng, lat, height, period] = wave;
+                
+                // 创建标记元素
+                const el = document.createElement('div');
+                el.className = 'wave-marker';
+                
+                // 根据浪高选择不同的emoji
+                let waveEmoji;
+                if (height < 1) waveEmoji = '🌊';
+                else if (height < 2) waveEmoji = '🌊';
+                else if (height < 3) waveEmoji = '🌊';
+                else if (height < 4) waveEmoji = '🌊';
+                else waveEmoji = '🌊';
+                
+                el.innerHTML = waveEmoji;
+                el.style.fontSize = `${Math.min(30, 20 + height * 5)}px`;
+                
+                // 创建标记
+                const marker = new mapboxgl.Marker({
+                    element: el,
+                    anchor: 'center'
+                })
+                .setLngLat([lng, lat])
+                .setPopup(new mapboxgl.Popup().setHTML(`
+                    <h4>海浪信息</h4>
+                    <p><strong>浪高:</strong> ${height} 米</p>
+                    <p><strong>周期:</strong> ${period} 秒</p>
+                `))
+                .addTo(map);
+                
+                waveMarkers.push(marker);
+            });
+            
+            debugLog(`添加了${waveMarkers.length}个浪高标记`);
+        }
+
+        // 添加台风标记
+        function addTyphoonMarkers() {
+            clearTyphoonMarkers();
+            
+            OCEAN_DATA.typhoons.forEach(typhoon => {
+                const [lng, lat, name, level, speed, direction, moveSpeed] = typhoon;
+                
+                // 创建标记元素
+                const el = document.createElement('div');
+                el.className = 'typhoon-marker';
+                
+                // 创建标记
+                const marker = new mapboxgl.Marker({
+                    element: el,
+                    anchor: 'center'
+                })
+                .setLngLat([lng, lat])
+                .setPopup(new mapboxgl.Popup().setHTML(`
+                    <h4>台风信息</h4>
+                    <p><strong>名称:</strong> ${name}</p>
+                    <p><strong>等级:</strong> ${level}</p>
+                    <p><strong>风速:</strong> ${speed} 节</p>
+                    <p><strong>移动方向:</strong> ${direction}°</p>
+                    <p><strong>移动速度:</strong> ${moveSpeed} 节</p>
+                    <p style="color:red;font-weight:bold;">请注意避让!</p>
+                `))
+                .addTo(map);
+                
+                typhoonMarkers.push(marker);
+            });
+            
+            debugLog(`添加了${typhoonMarkers.length}个台风标记`);
+        }
+
+        function unwrapRouteCoordinates(coords) {
+            if (coords.length < 2) return coords;
+
+            const result = [coords[0]];
+            let previousLng = coords[0][0];
+
+            for (let i = 1; i < coords.length; i++) {
+                let [lng, lat] = coords[i];
+
+                // 处理经度差值超过180度的问题
+                while (lng - previousLng > 180) lng -= 360;
+                while (lng - previousLng < -180) lng += 360;
+
+                result.push([lng, lat]);
+                previousLng = lng;
+            }
+
+            return result;
+        }
+
+        // 处理JSON格式的航线数据
+        function processJsonRoute(data) {
+            if (data.coordinates && Array.isArray(data.coordinates)) {
+                routeCoordinates = unwrapRouteCoordinates(data.coordinates);
+
+                // 提取元数据
+                routeMetadata = {
+                    name: data.name || '未命名航线',
+                    startPoint: data.startPoint || '未指定',
+                    endPoint: data.endPoint || '未指定',
+                    distance: data.distance || '未计算',
+                    estimatedTime: data.estimatedTime || '未指定',
+                    description: data.description || ''
+                };
+                
+                // 更新界面
+                clearWaypoints(); // 清除之前的航点标记
+                updateRouteInfo();
+                drawRoute();
+                document.getElementById('start-button').style.display = 'block';
+                debugLog("JSON航线数据处理成功");
+            } else {
+                throw new Error('JSON文件格式错误，缺少坐标数组');
+            }
+        }
+
+        // 处理TXT格式的航线数据
+        function processTxtRoute(text) {
+            const coordinates = text.split('\n')
+                .map(line => line.trim())
+                .filter(line => line.length > 0)
+                .map(line => {
+                    const parts = line.split(',');
+                    if (parts.length !== 2) {
+                        console.warn(`忽略无效行: ${line}`);
+                        return null;
+                    }
+                    const lng = parseFloat(parts[0].trim());
+                    const lat = parseFloat(parts[1].trim());
+                    if (isNaN(lng) || isNaN(lat)) {
+                        console.warn(`忽略无效坐标: ${line}`);
+                        return null;
+                    }
+                    return [lng, lat];
+                })
+                .filter(coord => coord !== null);
+
+            routeCoordinates = unwrapRouteCoordinates(coordinates);
+                
+            if (routeCoordinates.length < 2) {
+                throw new Error('有效坐标点不足，至少需要2个点');
+            }
+
+            // 设置基本元数据
+            const start = document.getElementById('start-point').value || '未指定';
+            const end = document.getElementById('end-point').value || '未指定';
+            
+            routeMetadata = {
+                name: `${start} 至 ${end}`,
+                startPoint: start,
+                endPoint: end,
+                distance: '未计算',
+                estimatedTime: '未指定',
+                description: '从文本文件加载的航线'
+            };
+            
+            // 更新界面
+            clearWaypoints(); // 清除之前的航点标记
+            updateRouteInfo();
+            drawRoute();
+            document.getElementById('start-button').style.display = 'block';
+            debugLog("TXT航线数据处理成功");
+        }
+
+        // 更新航线信息面板
+        function updateRouteInfo() {
+            const infoDiv = document.getElementById('route-info');
+            const detailsDiv = document.getElementById('route-details');
+            
+            detailsDiv.innerHTML = `
+                <p><strong>航线名称:</strong> ${routeMetadata.name}</p>
+                <p><strong>起点:</strong> ${routeMetadata.startPoint}</p>
+                <p><strong>终点:</strong> ${routeMetadata.endPoint}</p>
+                ${routeMetadata.description ? `<p><strong>描述:</strong> ${routeMetadata.description}</p>` : ''}
+                <p><strong>航点数量:</strong> ${routeCoordinates.length}</p>
+            `;
+            
+            infoDiv.style.display = 'block';
+        }
+
+        // 获取航线文件名
+        function getRouteFileName(start, end) {
+            // 标准化输入 (转小写，移除空格)
+            const normalizedStart = start.toLowerCase().trim();
+            const normalizedEnd = end.toLowerCase().trim();
+            
+            // 尝试不同的组合方式查找匹配
+            const combinations = [
+                `${normalizedStart}-${normalizedEnd}`,  // 例如: "g-j"
+                `${start}-${end}`,                     // 例如: "广州-日本"
+                `${normalizedStart}_${normalizedEnd}`   // 例如: "guangzhou_japan"
+            ];
+            
+            // 检查映射表中是否存在匹配
+            for (const combo of combinations) {
+                debugLog(`尝试匹配组合: ${combo}`);
+                if (ROUTE_MAPPINGS[combo]) {
+                    return ROUTE_MAPPINGS[combo];
+                }
+            }
+            
+            // 如果没有在映射表中找到，则使用标准命名格式
+            debugLog("未找到预定义映射，使用标准格式");
+            return `${normalizedStart}_${normalizedEnd}`;
+        }
+
+        // 从服务器加载航线
+        function loadRoute() {
+            clearDebugLog();
+            const startPoint = document.getElementById('start-point').value;
+            const endPoint = document.getElementById('end-point').value;
+            
+            // 添加路径验证
+            if (!startPoint || !endPoint) {
+                alert('请输入起点和终点');
+                return;
+            }
+
+            document.getElementById('loading-indicator').style.display = 'inline';
+            
+            // 获取航线文件名
+            const routeFileName = getRouteFileName(startPoint, endPoint);
+            debugLog(`根据输入生成的文件名: ${routeFileName}`);
+            
+            // 尝试不同格式的文件路径
+            loadRouteFile(routeFileName);
+        }
+
+        // 加载航线文件
+        function loadRouteFile(baseFileName) {
+            // 尝试的文件路径数组 (按优先级排序)
+            const filePaths = [
+                `routes/${baseFileName}.json`,
+                `routes/${baseFileName}.txt`,
+            ];
+            
+            debugLog(`准备尝试加载文件路径: ${filePaths.join(', ')}`);
+            
+            // 逐一尝试加载文件
+            tryLoadFiles(filePaths, 0);
+        }
+
+        // 递归尝试加载文件
+        function tryLoadFiles(paths, index) {
+            if (index >= paths.length) {
+                // 已尝试所有路径，但都失败了
+                const error = `没有找到匹配的航线文件`;
+                console.error(error);
+                alert(`加载航线失败: ${error}\n请检查:\n1. 文件是否存在\n2. 文件格式是否正确\n3. 控制台查看详细错误`);
+                document.getElementById('loading-indicator').style.display = 'none';
+                return;
+            }
+            
+            const currentPath = paths[index];
+            debugLog(`尝试加载文件: ${currentPath}`);
+            
+            fetch(currentPath)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP 错误! 状态: ${response.status}`);
+                    }
+                    
+                    // 根据文件扩展名处理不同格式
+                    if (currentPath.endsWith('.json')) {
+                        return response.json().then(data => {
+                            debugLog(`成功加载 JSON 文件: ${currentPath}`);
+                            processJsonRoute(data);
+                        });
+                    } else if (currentPath.endsWith('.txt')) {
+                        return response.text().then(data => {
+                            debugLog(`成功加载 TXT 文件: ${currentPath}`);
+                            processTxtRoute(data);
+                        });
+                    }
+                })
+                .then(() => {
+                    document.getElementById('loading-indicator').style.display = 'none';
+                })
+                .catch(error => {
+                    debugLog(`加载文件失败: ${currentPath}, 错误: ${error.message}`);
+                    console.error(`尝试加载 ${currentPath} 失败:`, error);
+                    // 尝试下一个文件
+                    tryLoadFiles(paths, index + 1);
+                });
+        }
+
+        // 绘制航线
+        function drawRoute() {
+            // 移除之前的航线
+            if (map.getLayer('route')) {
+                map.removeLayer('route');
+            }
+            if (map.getSource('route')) {
+                map.removeSource('route');
+            }
+
+            // 安全检查
+            if (!routeCoordinates || routeCoordinates.length < 2) {
+                console.error('坐标数据不足');
+                return;
+            }
+
+            // 添加新航线
+            try {
+                map.addSource('route', {
+                    'type': 'geojson',
+                    'data': {
+                        'type': 'Feature',
+                        'properties': {},
+                        'geometry': {
+                            'type': 'LineString',
+                            'coordinates': routeCoordinates
+                        }
+                    }
+                });
+                routeSource = 'route';
+
+                map.addLayer({
+                    'id': 'route',
+                    'type': 'line',
+                    'source': 'route',
+                    'layout': {
+                        'line-join': 'round',
+                        'line-cap': 'round'
+                    },
+                    'paint': {
+                        'line-color': '#FF0000',
+                        'line-width': 5
+                    }
+                });
+
+                // 添加航点标记
+                addWaypoints();
+
+                // 调整地图视角
+                const bounds = new mapboxgl.LngLatBounds();
+                routeCoordinates.forEach(coord => bounds.extend(coord));
+                
+                map.fitBounds(bounds, {
+                    padding: 50,
+                    duration: 1000
+                });
+                
+                debugLog("航线绘制成功");
+            } catch(e) {
+                console.error('绘制航线时出错:', e);
+                debugLog(`绘制航线失败: ${e.message}`);
+                alert('绘制航线失败: ' + e.message);
+            }
+        }
+
+        // 添加航点标记
+        function addWaypoints() {
+            // 只添加起点和终点标记
+            if (routeCoordinates.length >= 2) {
+                // 起点
+                const startMarker = new mapboxgl.Marker({color: 'green'})
+                    .setLngLat(routeCoordinates[0])
+                    .setPopup(new mapboxgl.Popup().setHTML(`<h3>起点</h3><p>${routeMetadata.startPoint}</p>`))
+                    .addTo(map);
+                
+                // 终点
+                const endMarker = new mapboxgl.Marker({color: 'red'})
+                    .setLngLat(routeCoordinates[routeCoordinates.length - 1])
+                    .setPopup(new mapboxgl.Popup().setHTML(`<h3>终点</h3><p>${routeMetadata.endPoint}</p>`))
+                    .addTo(map);
+                
+                wayPointMarkers.push(startMarker, endMarker);
+                debugLog("航点标记添加成功");
+            }
+        }
+
+        // 启动船只动画
+        function startShipAnimation() {
+            // 创建或重置船只标记
+            if (shipMarker) {
+                shipMarker.remove();
+            }
+
+            if (animationFrame) {
+                cancelAnimationFrame(animationFrame);
+            }
+
+            shipMarker = new mapboxgl.Marker({
+                element: createShipElement(),
+                anchor: 'center',
+                rotationAlignment: 'map'
+            })
+            .setLngLat(routeCoordinates[0])
+            .addTo(map);
+
+            let currentIndex = 0;
+            let lastTimestamp = 0;
+            
+            function animateShip(timestamp) {
+                if (!lastTimestamp) lastTimestamp = timestamp;
+                
+                const elapsed = timestamp - lastTimestamp;
+                
+                if (elapsed > animationSpeed && currentIndex < routeCoordinates.length - 1) {
+                    currentIndex++;
+                    const nextCoord = routeCoordinates[currentIndex];
+                    
+                    // 平滑移动
+                    shipMarker.setLngLat(nextCoord);
+                    
+                    // 计算船的方向
+                    if (currentIndex < routeCoordinates.length - 1) {
+                        const nextPoint = routeCoordinates[currentIndex + 1];
+                        const bearing = calculateBearing(nextCoord, nextPoint);
+                        shipMarker.setRotation(bearing);
+                    }
+                    
+                    lastTimestamp = timestamp;
+                }
+                
+                if (currentIndex < routeCoordinates.length - 1) {
+                    animationFrame = requestAnimationFrame(animateShip);
+                } else {
+                    // 动画结束
+                    debugLog('航行完成');
+                }
+            }
+
+            animationFrame = requestAnimationFrame(animateShip);
+            
+            // 跟随船只视角
+            map.flyTo({
+                center: routeCoordinates[0],
+                zoom: 5,
+                duration: 1000
+            });
+            
+            debugLog("船只动画已启动");
+        }
+
+        // 计算两点之间的方位角
+        function calculateBearing(start, end) {
+            const startLat = toRadians(start[1]);
+            const startLng = toRadians(start[0]);
+            const endLat = toRadians(end[1]);
+            const endLng = toRadians(end[0]);
+            
+            const y = Math.sin(endLng - startLng) * Math.cos(endLat);
+            const x = Math.cos(startLat) * Math.sin(endLat) - 
+                    Math.sin(startLat) * Math.cos(endLat) * Math.cos(endLng - startLng);
+            
+            let bearing = Math.atan2(y, x);
+            bearing = toDegrees(bearing);
+            
+            return (bearing + 360) % 360;
+        }
+
+        function toRadians(degrees) {
+            return degrees * Math.PI / 180;
+        }
+
+        function toDegrees(radians) {
+            return radians * 180 / Math.PI;
+        }
+
+        // 创建船只图标
+        function createShipElement() {
+            const el = document.createElement('div');
+            el.innerHTML = '🚢';
+            el.style.fontSize = '30px';
+            el.style.transform = 'translate(-50%, -50%)';  // 中心对齐
+            return el;
+        }
+
+        // 显示错误信息
+        function showError(message) {
+            console.error(message);
+            alert(message);
+        }
+
+        // 地图加载完成后的设置
+        map.on('style.load', () => {
+            map.setFog({
+                'range': [0.8, 8],
+                'color': 'white',
+                'horizon-blend': 0.1
+            });
+            
+            map.setLight({
+                'anchor': 'viewport',
+                'color': 'white',
+                'intensity': 0.4
+            });
+
+            map.addControl(new mapboxgl.NavigationControl(), 'bottom-right');
+            
+            debugLog("地图加载完成");
+        });
+    </script>
+</body>
+</html>
