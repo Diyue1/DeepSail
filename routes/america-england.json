@@ -1,7 +1,7 @@
 {
-    "name": "美国港至英国航线",
-    "startPoint": "美国港",
-    "endPoint": "英国港",
+    "name": "纽约/新泽西港至托伯莫里港航线",
+    "startPoint": "纽约/新泽西港",
+    "endPoint": "托伯莫里港",
     "coordinates": [
         [
             -74.0221,
