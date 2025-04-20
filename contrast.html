@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>航线规划对比系统</title>
+    <style>
+        * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Arial', sans-serif;
+}
+
+#home-button { 
+    position: fixed;
+    top: 5px; 
+    left: 130px; 
+    z-index: 100;
+    background-color: white; 
+    border: 1px solid #ccc; 
+    padding: 10px 15px; 
+    border-radius: 5px; 
+    cursor: pointer; 
+    text-decoration: none; 
+    color: black; 
+}
+
+body {
+    background-color: #f5f7fa;
+    color: #333;
+    line-height: 1.6;
+    overflow-x: hidden;
+}
+
+.view-container {
+    position: relative;
+    height: 100vh;
+    width: 100vw;
+    overflow-x: hidden;
+}
+
+.route-section {
+    height: 100vh;
+    width: 100vw;
+    padding: 40px;
+    display: flex;
+    flex-direction: column;
+    position: absolute;
+    top: 0;
+    left: 0;
+    background-color: #f5f7fa;
+    transition: transform 0.5s ease;
+    z-index: 1;
+    overflow-y: auto;
+}
+
+.route-section.hidden {
+    transform: translateY(-100%);
+}
+
+h1 {
+    text-align: center;
+    margin-bottom: 30px;
+    color: #2c3e50;
+}
+
+.tab-container {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 30px;
+}
+
+.tab {
+    padding: 12px 24px;
+    background-color: #e0e0e0;
+    border: none;
+    cursor: pointer;
+    font-size: 16px;
+    transition: all 0.3s ease;
+    border-radius: 5px 5px 0 0;
+    margin: 0 5px;
+}
+
+.tab.active {
+    background-color: #3498db;
+    color: white;
+}
+
+.tab-content {
+    display: none;
+    animation: fadeIn 0.5s ease;
+    flex: 1;
+}
+
+.tab-content.active {
+    display: flex;
+    flex-direction: column;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.route-comparison {
+    display: flex;
+    justify-content: space-between;
+    flex: 1;
+    flex-wrap: wrap;
+}
+
+.route-type {
+    flex: 1;
+    min-width: 300px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    padding: 20px;
+    margin: 10px;
+    transition: transform 0.3s ease;
+    display: flex;
+    flex-direction: column;
+}
+
+.route-type:hover {
+    transform: translateY(-5px);
+}
+
+.route-type h2 {
+    color: #3498db;
+    margin-bottom: 15px;
+    text-align: center;
+}
+
+.route-image-container {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.route-image {
+    width: 100%;
+    max-height: 60vh;
+    object-fit: contain;
+    border-radius: 5px;
+    margin-bottom: 15px;
+}
+
+.route-description {
+    color: #666;
+    text-align: justify;
+    min-height: 80px;
+}
+
+.down-arrow {
+    position: absolute; /* 改为absolute以便随内容滚动 */
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 40px;
+    color: #3498db;
+    cursor: pointer;
+    transition: transform 0.3s ease;
+    z-index: 50;
+    /* 增加padding确保箭头始终可点击 */
+    padding: 10px;
+}
+
+.down-arrow:hover {
+    transform: translate(-50%, 5px);
+}
+
+.algorithm-section {
+    height: 100vh;
+    width: 100vw;
+    background: white;
+    padding: 80px 40px 40px;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    transition: transform 0.5s ease;
+    overflow-y: auto;
+}
+
+.algorithm-section.visible {
+    transform: translateY(-100%);
+}
+
+.algorithm-section h2 {
+    text-align: center;
+    margin-bottom: 30px;
+    color: #2c3e50;
+}
+
+.double-image-section {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 20px;
+    padding: 20px;
+    width: 100%;
+}
+
+.image-with-label {
+    flex: 1 1 calc(50% - 20px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    box-sizing: border-box;
+    max-width: calc(50% - 10px);
+}
+
+.image-with-label img {
+    width: 100%;
+    height: auto;
+    max-height: 70vh;
+    object-fit: contain;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.image-label {
+    margin-top: 10px;
+    font-size: 16px;
+    color: #333;
+    text-align: center;
+}
+
+.algorithm-gallery {
+    display: grid;
+    /* 修改为3列布局，更好地利用空间 */
+    grid-template-columns: repeat(3, 1fr);
+    gap: 30px; /* 增加间距 */
+    padding: 20px;
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 1400px; /* 限制最大宽度 */
+    margin: 0 auto; /* 居中 */
+}
+
+.algorithm-image-container {
+    aspect-ratio: 16/10; /* 更合适的宽高比 */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    padding: 10px;
+    background-color: #f9f9f9;
+    border-radius: 12px;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.08);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.algorithm-image-container:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.12);
+}
+
+.algorithm-image {
+    width: 100%;
+    height: auto;
+    max-height: 85%;
+    object-fit: contain; /* 改为contain确保图片完整显示 */
+    border-radius: 8px;
+    transition: transform 0.3s ease;
+}
+
+.algorithm-image:hover {
+    transform: scale(1.03); /* 轻微放大效果 */
+}
+
+.image-caption {
+    text-align: center;
+    margin-top: 15px;
+    color: #2c3e50;
+    font-weight: 500;
+    font-size: 16px;
+}
+
+.up-arrow {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 40px;
+    color: #3498db;
+    cursor: pointer;
+    transition: transform 0.3s ease;
+    z-index: 50;
+}
+
+.up-arrow:hover {
+    transform: translate(-50%, -5px);
+}
+
+/* 新增样式以确保内容填充整个视口高度 */
+.tab-content {
+    min-height: calc(100vh - 180px); /* 减去标题和选项卡的高度 */
+    position: relative; /* 确保可以相对于此定位箭头 */
+    padding-bottom: 60px; /* 为箭头留出空间 */
+}
+
+/* 修复图片路径错误处理 */
+.algorithm-image-container img {
+    max-width: 100%;
+    display: block;
+}
+
+/* 添加错误处理样式 */
+.img-error {
+    border: 1px dashed #ff6b6b;
+    background-color: #ffe8e8;
+    width: 100%;
+    height: 200px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #ff6b6b;
+    font-weight: bold;
+}
+
+/* 调整算法部分的布局，使其更好地填充屏幕 */
+@media (max-width: 1200px) {
+    .algorithm-gallery {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+    .algorithm-gallery {
+        grid-template-columns: 1fr;
+    }
+}
+    </style>
+</head>
+<body>
+    <a href="index.html" id="home-button">首页</a>
+
+    <div class="view-container">
+        <!-- 航线对比部分 -->
+        <div class="route-section" id="routeSection">
+            <h1>航线规划对比系统</h1>
+            <div class="tab-container">
+                <button class="tab active" data-tab="ny-liverpool">纽约港 - 利物浦港</button>
+                <button class="tab" data-tab="shanghai-dampier">上海港 - 丹皮尔港</button>
+            </div>
+
+            <div id="ny-liverpool" class="tab-content active">
+                <div class="route-comparison">
+                    <div class="route-type">
+                        <h2>传统大圆航线</h2>
+                        <div class="route-image-container">
+                            <img src="pictures/图片1.png" alt="纽约-利物浦大圆航线" class="route-image" onerror="this.onerror=null; this.src=''; this.classList.add('img-error'); this.alt='图片加载失败'">
+                        </div>
+                        <p class="route-description">
+                            传统大圆航线是地球上两点之间的最短路径，在航海和航空中广泛应用。这条航线从纽约到利物浦跨越北大西洋，虽然距离最短，但经过危险风暴区。
+                        </p>
+                    </div>
+                    <div class="route-type">
+                        <h2>DeepSail规划航线</h2>
+                        <div class="route-image-container">
+                            <img src="pictures/图片2.png" alt="纽约-利物浦DeepSail航线" class="route-image" onerror="this.onerror=null; this.src=''; this.classList.add('img-error'); this.alt='图片加载失败'">
+                        </div>
+                        <p class="route-description">
+                            DeepSail航线考虑了实时气象数据、洋流和海况等因素，能有效避开恶劣天气区域，提高航行安全性和燃油效率。
+                        </p>
+                    </div>
+                </div>
+                <div class="down-arrow" id="downArrow1">↓</div>
+            </div>
+
+            <div id="shanghai-dampier" class="tab-content">
+                <div class="route-comparison">
+                    <div class="route-type">
+                        <h2>传统大圆航线</h2>
+                        <div class="route-image-container">
+                            <img src="pictures/图片3.png" alt="上海-丹皮尔大圆航线" class="route-image" onerror="this.onerror=null; this.src=''; this.classList.add('img-error'); this.alt='图片加载失败'">
+                        </div>
+                        <p class="route-description">
+                            无恶劣气象条件，贴近真实航线。
+                        </p>
+                    </div>
+                    <div class="route-type">
+                        <h2>DeepSail规划航线</h2>
+                        <div class="route-image-container">
+                            <img src="pictures/图片4.png" alt="上海-丹皮尔DeepSail航线" class="route-image" onerror="this.onerror=null; this.src=''; this.classList.add('img-error'); this.alt='图片加载失败'">
+                        </div>
+                        <p class="route-description">
+                            无恶劣气象条件，贴近真实航线。
+                        </p>
+                    </div>
+                </div>
+                <div class="down-arrow" id="downArrow2">↓</div>
+            </div>
+        </div>
+
+        <!-- 算法部分 -->
+        <div class="algorithm-section" id="algorithmSection">
+            <h2>算法航线对比</h2>
+            <div class="algorithm-gallery">
+                <div class="algorithm-image-container">
+                    <img src="pictures/图片5.png" alt="算法对比图1" class="algorithm-image" onerror="this.onerror=null; this.src=''; this.classList.add('img-error'); this.alt='图片加载失败'">
+                    <div class="image-caption">DeepSail</div>
+                </div>
+                <div class="algorithm-image-container">
+                    <img src="pictures/图片6.png" alt="算法对比图2" class="algorithm-image" onerror="this.onerror=null; this.src=''; this.classList.add('img-error'); this.alt='图片加载失败'">
+                    <div class="image-caption">DQN算法</div>
+                </div>
+                <div class="algorithm-image-container">
+                    <img src="pictures/图片7.png" alt="算法对比图3" class="algorithm-image" onerror="this.onerror=null; this.src=''; this.classList.add('img-error'); this.alt='图片加载失败'">
+                    <div class="image-caption">A*算法</div>
+                </div>
+                <div class="algorithm-image-container">
+                    <img src="pictures/图片8.png" alt="算法对比图4" class="algorithm-image" onerror="this.onerror=null; this.src=''; this.classList.add('img-error'); this.alt='图片加载失败'">
+                    <div class="image-caption">ACO遗传算法</div>
+                </div>
+                <div class="algorithm-image-container">
+                    <img src="pictures/图片9.png" alt="算法对比图5" class="algorithm-image" onerror="this.onerror=null; this.src=''; this.classList.add('img-error'); this.alt='图片加载失败'">
+                    <div class="image-caption">SAC算法</div>
+                </div>
+            </div>
+            <div class="up-arrow" id="upArrow">↑</div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const tabs = document.querySelectorAll('.tab');
+            const tabContents = document.querySelectorAll('.tab-content');
+            const routeSection = document.getElementById('routeSection');
+            const algorithmSection = document.getElementById('algorithmSection');
+            const downArrow1 = document.getElementById('downArrow1');
+            const downArrow2 = document.getElementById('downArrow2');
+            const upArrow = document.getElementById('upArrow');
+
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    tabs.forEach(t => t.classList.remove('active'));
+                    tabContents.forEach(c => c.classList.remove('active'));
+                    tab.classList.add('active');
+                    const tabId = tab.getAttribute('data-tab');
+                    document.getElementById(tabId).classList.add('active');
+                });
+            });
+
+            // 两个箭头都有相同的功能
+            function showAlgorithmSection() {
+                routeSection.classList.add('hidden');
+                algorithmSection.classList.add('visible');
+            }
+
+            downArrow1.addEventListener('click', showAlgorithmSection);
+            downArrow2.addEventListener('click', showAlgorithmSection);
+
+            upArrow.addEventListener('click', () => {
+                routeSection.classList.remove('hidden');
+                algorithmSection.classList.remove('visible');
+            });
+
+            // 添加图片错误处理
+            const images = document.querySelectorAll('img');
+            images.forEach(img => {
+                img.addEventListener('error', function() {
+                    console.log('图片加载失败: ' + this.src);
+                    this.onerror = null;
+                    this.src = '';
+                    this.classList.add('img-error');
+                    this.alt = '图片加载失败';
+                });
+            });
+        });
+        
+    </script>
+</body>
+</html>
