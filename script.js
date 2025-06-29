@@ -590,8 +590,8 @@ const portMappings = {
     "智利瓦斯科港": "southamerica",
     "日本福冈港": "japan",
     "澳大利亚丹皮尔港": "australia",
-    "纽约/新泽西港":"america",
-    "托伯莫里港":"england"
+    "美国港":"america",
+    "英国港":"england"
 };
 
 // 初始化事件监听
