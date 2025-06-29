@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>海洋气象 - 远洋导航</title>
+    <link href="https://fonts.googleapis.com/css?family=Roboto:400,500,700" rel="stylesheet">
+    <style>
+        :root {
+            --blue-deep: #0e1336;
+            --blue-glow: #00b4fc;
+            --blue-dark: #202748;
+            --gold: #ffd43b;
+            --navy: #131c37;
+            --theme-light-bg: linear-gradient(135deg, #eff6ff 0%, #b6e2ff 100%);
+            --theme-dark-bg: linear-gradient(135deg, #0e1336 0%, #202748 80%, #1d2548 100%);
+        }
+        html,body {
+            min-height: 100vh;
+            background: var(--theme-dark-bg);
+            color: #fff;
+            font-family: 'Roboto', 'PingFang SC', 'Microsoft YaHei', Arial, sans-serif;
+        }
+        body {
+            margin: 0; padding: 0;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        .navbar {
+            width: 100vw;
+            height: 64px;
+            position: fixed; top:0; left:0; right:0;
+            z-index: 40;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(24,32,61,0.92);
+            box-shadow: 0 2px 12px #0e133622;
+            backdrop-filter: blur(6px);
+            padding: 0 24px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .navbar.hidden {
+            transform: translateY(-100%);
+        }
+        .navbar-toggle {
+            position: fixed;
+            top: 50%;
+            left: 0;
+            transform: translateY(-50%);
+            z-index: 50;
+            background: #00b4fc;
+            color: #fff;
+            border: none;
+            border-radius: 0 10px 10px 0;
+            width: 36px;
+            height: 36px;
+            font-size: 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 2px 0 8px #00b4fc33;
+            transition: all 0.3s ease;
+            opacity: 0.8;
+        }
+        .navbar-toggle:hover {
+            opacity: 1;
+            background: #2563eb;
+            box-shadow: 2px 0 12px #00b4fc66;
+        }
+        .navbar-toggle.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+        .brand {
+            font-size: 25px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            color: #00b4fc;
+            margin-right: 18px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            user-select:none;
+            animation: brandGlow 2.8s infinite alternate;
+        }
+        @keyframes brandGlow {
+            0% { filter: drop-shadow(0 0 4px #00b4fc);}
+            100% { filter: drop-shadow(0 0 14px #00f6fc);}
+        }
+        .navbar .nav-menu {
+            display: flex; gap: 14px; align-items: center;
+        }
+        .nav-btn {
+            padding: 8px 24px;
+            border: none;
+            border-radius: 20px;
+            background: linear-gradient(90deg,#00b4fc 0%,#2563eb 100%);
+            color: #fff; font-size: 16px;
+            font-weight: 500; cursor: pointer;
+            box-shadow: 0 2px 8px #00b4fc33;
+            margin: 0 0 0 3px;
+            position: relative; overflow: hidden;
+            transition: background 0.16s, color 0.18s;
+        }
+        .nav-btn:hover {
+            color: #ffd43b;
+            background: linear-gradient(90deg,#2563eb 0%,#00b4fc 100%);
+            box-shadow: 0 0 14px #00f6fc88;
+        }
+        .theme-toggle {
+            background: none;
+            border: none;
+            color: #fff;
+            font-size: 21px;
+            margin-left: 18px;
+            margin-right: 0;
+            cursor: pointer;
+            transition: color 0.18s;
+        }
+        .theme-toggle:hover { color: #ffd43b;}
+        .navbar .nav-right {
+            display: flex; align-items: center; gap: 0;
+        }
+        .login-btn {
+            background: linear-gradient(90deg, #ffd43b 15%, #ffec70 100%);
+            color: #1a237e;
+            border: none;
+            border-radius: 18px;
+            padding: 7px 26px;
+            font-weight: 600;
+            font-size: 16px;
+            cursor: pointer;
+            box-shadow: 0 2px 7px #ffd43b33;
+            transition: background 0.17s, color 0.14s, box-shadow 0.14s;
+            margin-left: 8px;
+            margin-right: 96px;
+        }
+        .login-btn:hover { background:#fff066; color: #202748;}
+        .avatar-img {
+            width: 38px; height: 38px; border-radius: 50%;
+            border: 2px solid #00b4fc;
+            margin-right: 6px;
+            background: #fff;
+            object-fit: cover;
+            cursor: pointer;
+            transition: border 0.14s, box-shadow 0.14s;
+        }
+        .avatar-img:hover { border:2px solid #ffd43b; box-shadow:0 0 10px #ffd43b;}
+        .username {
+            font-size: 15px; color: #ffd43b;
+            font-weight: 500; margin-left:2px; cursor: pointer;
+        }
+        #userAvatarWrap {
+            display:none;
+            margin-right: 48px;
+        }
+        .sidebar {
+            position: fixed;
+            left: 0; top: 64px; bottom: 0;
+            width: 230px;
+            background: rgba(22,32,61,0.98);
+            box-shadow: 2px 0 18px #1a237e22;
+            z-index: 30;
+            transition: transform 0.3s cubic-bezier(.65,0,.42,1.04);
+            display: flex; flex-direction: column; gap: 16px;
+            padding: 30px 0 0 0;
+            transform: translateX(0); /* 默认显示 */
+        }
+        .sidebar.collapsed {
+            transform: translateX(-230px);
+        }
+        .sidebar-toggle {
+            position: absolute;
+            top: 22px; right: -18px;
+            background: #00b4fc;
+            color: #fff;
+            border: none; border-radius: 10px 0 0 10px;
+            width: 36px; height: 36px;
+            font-size: 20px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 2px 0 8px #00b4fc33;
+        }
+        .sidebar-btn {
+            background: linear-gradient(90deg, #2563eb 0%, #00b4fc 100%);
+            border: none;
+            color: #fff; font-size: 16px; font-weight: 500;
+            border-radius: 12px;
+            padding: 10px 18px;
+            margin-bottom: 6px;
+            cursor: pointer;
+            transition: background 0.17s, color 0.16s;
+            text-align: left;
+        }
+        .sidebar-btn.active,
+        .sidebar-btn:hover {
+            color: #ffd43b;
+            background: linear-gradient(90deg, #00b4fc 0%, #2563eb 100%);
+        }
+        .sidebar-content {
+            margin-top: 22px; color: #fff;
+            font-size: 15px;
+            min-height: 120px;
+            line-height: 2;
+        }
+        .main-content {
+            margin-left: 230px;
+            transition: margin-left 0.3s cubic-bezier(.65,0,.42,1.04);
+            height: calc(100vh - 64px);
+            display: flex;
+            flex-direction: column;
+        }
+        .main-content.expanded {
+            margin-left: 0;
+            height: calc(100vh - 64px);
+        }
+        .section {
+            display: none;
+            padding: 0;
+            margin-top: 0;
+            color: #fff;
+            height: 100%;
+        }
+        .section.active {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+        
+        /* 海洋气象信息样式 */
+        .weather-container {
+            padding: 0;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .weather-tabs {
+            display: flex;
+            background: rgba(24,32,61,0.95);
+            border-bottom: 2px solid rgba(0, 180, 252, 0.3);
+            padding: 0 20px;
+        }
+        
+        .weather-tab {
+            padding: 15px 25px;
+            color: #fff;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            position: relative;
+            transition: all 0.2s ease;
+        }
+        
+        .weather-tab:hover {
+            color: #ffd43b;
+        }
+        
+        .weather-tab.active {
+            color: #00b4fc;
+        }
+        
+        .weather-tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background: #00b4fc;
+            box-shadow: 0 0 10px rgba(0, 180, 252, 0.8);
+        }
+        
+        .weather-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 0;
+            overflow: hidden;
+        }
+        
+        .weather-panel {
+            display: none;
+            flex-direction: column;
+            height: 100%;
+        }
+        
+        .weather-panel.active {
+            display: flex;
+        }
+        
+        .ocean-iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+        
+        .weather-info {
+            background: rgba(24,32,61,0.95);
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .weather-info-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #fff;
+        }
+        
+        .weather-info-value {
+            color: #ffd43b;
+            font-weight: 500;
+        }
+        
+        .data-source {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            background: rgba(14, 19, 54, 0.7);
+            color: #fff;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 12px;
+            z-index: 5;
+        }
+        
+        .data-source a {
+            color: #00b4fc;
+            text-decoration: none;
+        }
+        
+        .data-source a:hover {
+            text-decoration: underline;
+        }
+        
+        @media (max-width: 900px) {
+            .sidebar { width: 60vw; min-width: 160px; padding:18px 8px;}
+            .sidebar.collapsed { transform: translateX(-60vw);}
+            .main-content { margin-left: 0; }
+            .weather-container { padding: 0; }
+            .weather-tabs { overflow-x: auto; padding: 0 10px; }
+            .weather-tab { padding: 15px 15px; font-size: 14px; }
+        }
+        @media (max-width: 600px) {
+            .navbar .brand {font-size:17px;}
+            .sidebar {padding-top: 7vw; transform: translateX(-60vw);}
+            .weather-tab { padding: 15px 10px; font-size: 13px; }
+        }
+    </style>
+</head>
+<body>
+    <!-- 顶栏控制按钮 -->
+    <button class="navbar-toggle" id="navbarToggle">▼</button>
+    
+    <!-- 顶栏 -->
+    <nav class="navbar" id="navbar">
+        <div class="brand">
+            <svg width="29" height="29" viewBox="0 0 100 100">
+                <circle cx="50" cy="50" r="46" fill="none" stroke="#00b4fc" stroke-width="7"/>
+                <circle cx="50" cy="50" r="33" fill="#ffd43b" opacity="0.20"/>
+                <circle cx="50" cy="50" r="23" fill="#00b4fc" opacity="0.60"/>
+            </svg>
+            远洋导航
+        </div>
+        <div class="nav-menu">
+            <button class="nav-btn" onclick="window.location.href='index.html'">主页</button>
+            <button class="nav-btn" onclick="window.location.href='route.html'">航线</button>
+            <button class="nav-btn active" onclick="window.location.href='weather.html'">气象</button>
+            <button class="nav-btn" onclick="window.location.href='port.html'">港口</button>
+            <button class="theme-toggle" title="切换主题" id="themeBtn">🌓</button>
+        </div>
+        <div class="nav-right">
+            <div id="userAvatarWrap" style="display:none;">
+                <img src="" alt="头像" class="avatar-img" id="userAvatar">
+                <span class="username" id="userName"></span>
+            </div>
+        </div>
+    </nav>
+    
+    <!-- 灵动侧边栏 -->
+    <aside class="sidebar" id="sidebar">
+        <button class="sidebar-toggle" id="sidebarToggleBtn">◀</button>
+        <button class="sidebar-btn" onclick="window.location.href='index.html'">🏠 主页</button>
+        <button class="sidebar-btn active" onclick="window.location.href='weather.html'">🌦️ 气象风速</button>
+        <button class="sidebar-btn" onclick="window.location.href='route.html'">🛳️ 航线监控</button>
+        <button class="sidebar-btn" onclick="window.location.href='port.html'">⚓ 港口信息</button>
+        <div class="sidebar-content" id="sidebarContent">
+            欢迎使用海洋气象信息系统，查看潮汐、波浪、气象等实时数据。
+        </div>
+    </aside>
+    
+    <!-- 主内容区域 -->
+    <div class="main-content" id="mainContent">
+        <main id="main-weather-area" class="section active">
+            <div class="weather-container">
+                <!-- 气象信息标签页 -->
+                <div class="weather-tabs">
+                    <div class="weather-tab active" data-tab="tide">🌊 潮汐预报</div>
+                    <div class="weather-tab" data-tab="wave">🌊 波浪预报</div>
+                    <div class="weather-tab" data-tab="weather">🌦️ 气象预报</div>
+                    <div class="weather-tab" data-tab="typhoon">🌀 台风预报</div>
+                    <div class="weather-tab" data-tab="ecology">🐠 海洋生态</div>
+                </div>
+                
+                <!-- 气象信息内容区 -->
+                <div class="weather-content">
+                    <!-- 潮汐预报 -->
+                    <div class="weather-panel active" id="tide-panel">
+                        <iframe class="ocean-iframe" src="https://www.hws945.com/web/oceanTidesGlobal" frameborder="0"></iframe>
+                        <div class="data-source">
+                            数据来源: <a href="https://www.hws945.com" target="_blank">海维斯海洋信息网</a>
+                        </div>
+                    </div>
+                    
+                    <!-- 波浪预报 -->
+                    <div class="weather-panel" id="wave-panel">
+                        <iframe class="ocean-iframe" src="https://www.hws945.com/web/oceanWave" frameborder="0"></iframe>
+                        <div class="data-source">
+                            数据来源: <a href="https://www.hws945.com" target="_blank">海维斯海洋信息网</a>
+                        </div>
+                    </div>
+                    
+                    <!-- 气象预报 -->
+                    <div class="weather-panel" id="weather-panel">
+                        <iframe class="ocean-iframe" src="http://www.nmc.cn/publish/forecast/weather.html" frameborder="0"></iframe>
+                        <div class="data-source">
+                            数据来源: <a href="http://www.nmc.cn/" target="_blank">中央气象台</a>
+                        </div>
+                    </div>
+                    
+                    <!-- 台风预报 -->
+                    <div class="weather-panel" id="typhoon-panel">
+                        <iframe class="ocean-iframe" src="http://www.nmc.cn/publish/typhoon/warning.html" frameborder="0"></iframe>
+                        <div class="data-source">
+                            数据来源: <a href="http://www.nmc.cn/" target="_blank">中央气象台</a>
+                        </div>
+                    </div>
+                    
+                    <!-- 海洋生态 -->
+                    <div class="weather-panel" id="ecology-panel">
+                        <iframe class="ocean-iframe" src="http://www.oceanguide.org.cn/" frameborder="0"></iframe>
+                        <div class="data-source">
+                            数据来源: <a href="http://www.oceanguide.org.cn/" target="_blank">中国海洋预报网</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <script>
+        // ----------- 侧栏灵动切换 ---------
+        const sidebar = document.getElementById('sidebar');
+        const sidebarToggleBtn = document.getElementById('sidebarToggleBtn');
+        const mainContent = document.getElementById('mainContent');
+        
+        sidebarToggleBtn.onclick = () => {
+            if(sidebar.classList.contains('collapsed')){
+                sidebar.classList.remove('collapsed');
+                mainContent.classList.remove('expanded');
+                sidebarToggleBtn.textContent = '◀';
+            }else{
+                sidebar.classList.add('collapsed');
+                mainContent.classList.add('expanded');
+                sidebarToggleBtn.textContent = '▶';
+            }
+        };
+
+        // 主题切换
+        const themeBtn = document.getElementById('themeBtn');
+        let isLight = false;
+        themeBtn.onclick = () => {
+            isLight = !isLight;
+            if(isLight){
+                document.documentElement.style.setProperty('--theme-dark-bg', 'var(--theme-light-bg)');
+                document.body.style.color = "#222";
+                themeBtn.textContent = "🌚";
+                document.querySelector('.navbar').style.background = "rgba(230,240,255,0.94)";
+            }else{
+                document.documentElement.style.setProperty('--theme-dark-bg', 'linear-gradient(135deg, #0e1336 0%, #202748 80%, #1d2548 100%)');
+                document.body.style.color = "#fff";
+                themeBtn.textContent = "🌓";
+                document.querySelector('.navbar').style.background = "rgba(24,32,61,0.92)";
+            }
+        };
+
+        // 顶栏自动隐藏功能
+        let navbarHideTimeout;
+        const navbar = document.getElementById('navbar');
+        const navbarToggle = document.getElementById('navbarToggle');
+        let isNavbarVisible = false;
+        
+        function hideNavbar() {
+            navbar.classList.add('hidden');
+            navbarToggle.classList.remove('hidden');
+            isNavbarVisible = false;
+            navbarToggle.textContent = '▼';
+        }
+        
+        function showNavbar() {
+            navbar.classList.remove('hidden');
+            navbarToggle.classList.remove('hidden');
+            isNavbarVisible = true;
+            navbarToggle.textContent = '▲';
+        }
+        
+        // 顶栏控制按钮点击事件
+        navbarToggle.addEventListener('click', () => {
+            if (isNavbarVisible) {
+                hideNavbar();
+            } else {
+                showNavbar();
+            }
+        });
+        
+        // 页面加载后隐藏顶栏
+        document.addEventListener('DOMContentLoaded', () => {
+            hideNavbar(); // 初始状态隐藏顶栏
+            
+            // 设置侧边栏内容
+            document.getElementById('sidebarContent').innerHTML = `
+                <div style="padding: 0 15px;">
+                    <p>👋 欢迎使用海洋气象信息系统</p>
+                    <p>提供以下信息服务：</p>
+                    <ul>
+                        <li>潮汐预报</li>
+                        <li>波浪预报</li>
+                        <li>气象预报</li>
+                        <li>台风预报</li>
+                        <li>海洋生态</li>
+                    </ul>
+                    <div style="margin-top: 15px; font-size: 13px; color: #999;">
+                        数据由海维斯海洋信息网提供
+                    </div>
+                </div>
+            `;
+            
+            // 标签页切换功能
+            const tabs = document.querySelectorAll('.weather-tab');
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    // 移除所有标签页的active类
+                    tabs.forEach(t => t.classList.remove('active'));
+                    // 为当前点击的标签页添加active类
+                    tab.classList.add('active');
+                    
+                    // 隐藏所有面板
+                    document.querySelectorAll('.weather-panel').forEach(panel => {
+                        panel.classList.remove('active');
+                    });
+                    
+                    // 显示对应的面板
+                    const tabId = tab.getAttribute('data-tab');
+                    document.getElementById(`${tabId}-panel`).classList.add('active');
+                });
+            });
+        });
+    </script>
+</body>
+</html> 

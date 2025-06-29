@@ -1,0 +1,1132 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>港口信息 - 远洋导航</title>
+    <link href="https://fonts.googleapis.com/css?family=Roboto:400,500,700" rel="stylesheet">
+    <!-- 添加高德地图API -->
+    <script type="text/javascript" src="https://webapi.amap.com/maps?v=2.0&key=97936dbf33c7b24831d89ce6e9adc1b9"></script>
+    <style>
+        :root {
+            --blue-deep: #0e1336;
+            --blue-glow: #00b4fc;
+            --blue-dark: #202748;
+            --gold: #ffd43b;
+            --navy: #131c37;
+            --theme-light-bg: linear-gradient(135deg, #eff6ff 0%, #b6e2ff 100%);
+            --theme-dark-bg: linear-gradient(135deg, #0e1336 0%, #202748 80%, #1d2548 100%);
+        }
+        html,body {
+            min-height: 100vh;
+            background: var(--theme-dark-bg);
+            color: #fff;
+            font-family: 'Roboto', 'PingFang SC', 'Microsoft YaHei', Arial, sans-serif;
+        }
+        body {
+            margin: 0; padding: 0;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        .navbar {
+            width: 100vw;
+            height: 64px;
+            position: fixed; top:0; left:0; right:0;
+            z-index: 40;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(24,32,61,0.92);
+            box-shadow: 0 2px 12px #0e133622;
+            backdrop-filter: blur(6px);
+            padding: 0 24px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .navbar.hidden {
+            transform: translateY(-100%);
+        }
+        .navbar-toggle {
+            position: fixed;
+            top: 50%;
+            left: 0;
+            transform: translateY(-50%);
+            z-index: 50;
+            background: #00b4fc;
+            color: #fff;
+            border: none;
+            border-radius: 0 10px 10px 0;
+            width: 36px;
+            height: 36px;
+            font-size: 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 2px 0 8px #00b4fc33;
+            transition: all 0.3s ease;
+            opacity: 0.8;
+        }
+        .navbar-toggle:hover {
+            opacity: 1;
+            background: #2563eb;
+            box-shadow: 2px 0 12px #00b4fc66;
+        }
+        .navbar-toggle.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+        .brand {
+            font-size: 25px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            color: #00b4fc;
+            margin-right: 18px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            user-select:none;
+            animation: brandGlow 2.8s infinite alternate;
+        }
+        @keyframes brandGlow {
+            0% { filter: drop-shadow(0 0 4px #00b4fc);}
+            100% { filter: drop-shadow(0 0 14px #00f6fc);}
+        }
+        .navbar .nav-menu {
+            display: flex; gap: 14px; align-items: center;
+        }
+        .nav-btn {
+            padding: 8px 24px;
+            border: none;
+            border-radius: 20px;
+            background: linear-gradient(90deg,#00b4fc 0%,#2563eb 100%);
+            color: #fff; font-size: 16px;
+            font-weight: 500; cursor: pointer;
+            box-shadow: 0 2px 8px #00b4fc33;
+            margin: 0 0 0 3px;
+            position: relative; overflow: hidden;
+            transition: background 0.16s, color 0.18s;
+        }
+        .nav-btn:hover {
+            color: #ffd43b;
+            background: linear-gradient(90deg,#2563eb 0%,#00b4fc 100%);
+            box-shadow: 0 0 14px #00f6fc88;
+        }
+        .theme-toggle {
+            background: none;
+            border: none;
+            color: #fff;
+            font-size: 21px;
+            margin-left: 18px;
+            margin-right: 0;
+            cursor: pointer;
+            transition: color 0.18s;
+        }
+        .theme-toggle:hover { color: #ffd43b;}
+        .navbar .nav-right {
+            display: flex; align-items: center; gap: 0;
+        }
+        .avatar-img {
+            width: 38px; height: 38px; border-radius: 50%;
+            border: 2px solid #00b4fc;
+            margin-right: 6px;
+            background: #fff;
+            object-fit: cover;
+            cursor: pointer;
+            transition: border 0.14s, box-shadow 0.14s;
+        }
+        .avatar-img:hover { border:2px solid #ffd43b; box-shadow:0 0 10px #ffd43b;}
+        .username {
+            font-size: 15px; color: #ffd43b;
+            font-weight: 500; margin-left:2px; cursor: pointer;
+        }
+        #userAvatarWrap {
+            display:none;
+            margin-right: 48px;
+        }
+        .sidebar {
+            position: fixed;
+            left: 0; top: 64px; bottom: 0;
+            width: 230px;
+            background: rgba(22,32,61,0.98);
+            box-shadow: 2px 0 18px #1a237e22;
+            z-index: 30;
+            transition: transform 0.3s cubic-bezier(.65,0,.42,1.04);
+            display: flex; flex-direction: column; gap: 16px;
+            padding: 30px 0 0 0;
+            transform: translateX(0); /* 默认显示 */
+        }
+        .sidebar.collapsed {
+            transform: translateX(-230px);
+        }
+        .sidebar-toggle {
+            position: absolute;
+            top: 22px; right: -18px;
+            background: #00b4fc;
+            color: #fff;
+            border: none; border-radius: 10px 0 0 10px;
+            width: 36px; height: 36px;
+            font-size: 20px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 2px 0 8px #00b4fc33;
+        }
+        .sidebar-btn {
+            background: linear-gradient(90deg, #2563eb 0%, #00b4fc 100%);
+            border: none;
+            color: #fff; font-size: 16px; font-weight: 500;
+            border-radius: 12px;
+            padding: 10px 18px;
+            margin-bottom: 6px;
+            cursor: pointer;
+            transition: background 0.17s, color 0.16s;
+            text-align: left;
+        }
+        .sidebar-btn.active,
+        .sidebar-btn:hover {
+            color: #ffd43b;
+            background: linear-gradient(90deg, #00b4fc 0%, #2563eb 100%);
+        }
+        .sidebar-content {
+            margin-top: 22px; color: #fff;
+            font-size: 15px;
+            min-height: 120px;
+            line-height: 2;
+        }
+        .main-content {
+            margin-left: 230px;
+            transition: margin-left 0.3s cubic-bezier(.65,0,.42,1.04);
+            height: calc(100vh - 64px);
+            display: flex;
+            flex-direction: column;
+        }
+        .main-content.expanded {
+            margin-left: 0;
+            height: calc(100vh - 64px);
+        }
+        .section {
+            display: none;
+            padding: 0;
+            margin-top: 0;
+            color: #fff;
+            height: 100%;
+        }
+        .section.active {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+        .port-map-container {
+            flex: 1;
+            width: 100%;
+            height: 100%;
+            min-height: 600px;
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+            justify-content: stretch;
+            padding: 20px;
+        }
+        .port-map-iframe {
+            width: 100%;
+            height: 100%;
+            min-height: 600px;
+            border: none;
+            border-radius: 18px;
+            box-shadow: 0 2px 18px #00b4fc22;
+            background: #fff;
+        }
+        
+        .iframe-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            width: 100%;
+        }
+        
+        .iframe-header {
+            background: rgba(24,32,61,0.92);
+            color: white;
+            padding: 15px 20px;
+            border-radius: 10px 10px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .iframe-header h2 {
+            margin: 0;
+            font-size: 18px;
+            color: var(--blue-glow);
+        }
+        
+        .iframe-controls {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .iframe-controls button {
+            background: linear-gradient(90deg,#00b4fc 0%,#2563eb 100%);
+            color: white;
+            border: none;
+            border-radius: 15px;
+            padding: 5px 15px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        
+        .iframe-controls button:hover {
+            color: #ffd43b;
+        }
+        
+        /* VesselFinder inspired styles */
+        .vessel-finder-container {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            width: 100%;
+            color: #333;
+        }
+        
+        .vessel-finder-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 20px;
+            background: rgba(24,32,61,0.92);
+            border-radius: 10px 10px 0 0;
+            margin-bottom: 0;
+        }
+        
+        .vessel-finder-search {
+            display: flex;
+            width: 40%;
+        }
+        
+        .vessel-finder-search input {
+            width: 100%;
+            padding: 8px 15px;
+            border-radius: 20px 0 0 20px;
+            border: 1px solid #ccc;
+            outline: none;
+            font-size: 15px;
+        }
+        
+        .vessel-finder-search button {
+            background: linear-gradient(90deg,#00b4fc 0%,#2563eb 100%);
+            color: white;
+            border: none;
+            border-radius: 0 20px 20px 0;
+            padding: 0 15px;
+            cursor: pointer;
+        }
+        
+        .vessel-finder-filters {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .vessel-finder-filters button {
+            background: rgba(24,32,61,0.7);
+            color: white;
+            border: none;
+            border-radius: 15px;
+            padding: 5px 15px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        
+        .vessel-finder-filters button:hover {
+            background: #00b4fc;
+        }
+        
+        .vessel-finder-content {
+            display: flex;
+            height: 100%;
+            background: #fff;
+            border-radius: 0 0 10px 10px;
+            overflow: hidden;
+        }
+        
+        .vessel-finder-sidebar {
+            width: 300px;
+            background: #f5f8fc;
+            padding: 15px;
+            border-right: 1px solid #e0e6ed;
+            overflow-y: auto;
+            height: 100%;
+        }
+        
+        .vessel-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .vessel-card {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+            padding: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .vessel-card:hover {
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+            transform: translateY(-2px);
+        }
+        
+        .vessel-name {
+            font-weight: 600;
+            color: #1a237e;
+        }
+        
+        .vessel-type {
+            color: #666;
+            font-size: 12px;
+            margin: 5px 0;
+        }
+        
+        .vessel-position {
+            font-size: 13px;
+            color: #444;
+        }
+        
+        .port-card {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+            padding: 12px;
+            margin-bottom: 10px;
+        }
+        
+        .port-name {
+            font-weight: 600;
+            color: #1a237e;
+        }
+        
+        .port-country {
+            font-size: 12px;
+            color: #666;
+        }
+        
+        .vessel-finder-map {
+            flex: 1;
+            height: 100%;
+            width: 100%;
+            background-color: #cde;
+            background-image: url('assets/images/bg.jpg');
+            background-size: cover;
+            position: relative;
+        }
+        
+        .map-controls {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        
+        .map-controls button {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: white;
+            border: none;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            font-size: 18px;
+            cursor: pointer;
+        }
+        
+        .vessel-marker {
+            width: 20px;
+            height: 20px;
+            background: #00b4fc;
+            border-radius: 50%;
+            border: 2px solid white;
+            box-shadow: 0 0 5px rgba(0,0,0,0.3);
+            transform: translate(-50%, -50%);
+            position: absolute;
+            cursor: pointer;
+        }
+        
+        .port-marker {
+            width: 24px;
+            height: 24px;
+            background: #ffd43b;
+            border: 2px solid white;
+            box-shadow: 0 0 5px rgba(0,0,0,0.3);
+            transform: translate(-50%, -50%);
+            position: absolute;
+            cursor: pointer;
+            clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+        }
+        
+        .marker-popup {
+            position: absolute;
+            background: white;
+            border-radius: 5px;
+            padding: 10px;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.2);
+            width: 200px;
+            z-index: 10;
+            display: none;
+        }
+        
+        .vessel-finder-tabs {
+            display: flex;
+            margin-bottom: 10px;
+        }
+        
+        .vessel-finder-tab {
+            padding: 8px 15px;
+            background: #e0e6ed;
+            cursor: pointer;
+        }
+        
+        .vessel-finder-tab.active {
+            background: white;
+            font-weight: 500;
+        }
+        
+        .info-panel {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(255,255,255,0.9);
+            border-radius: 8px;
+            padding: 15px;
+            max-width: 300px;
+            max-height: 500px;
+            overflow-y: auto;
+            z-index: 1000;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+            color: #000000; /* 添加黑色字体颜色 */
+            font-weight: 500; /* 加粗字体 */
+        }
+        
+        /* 添加面板内容的样式 */
+        #panel-content {
+            color: #000000;
+            font-weight: 500;
+        }
+        
+        #panel-content p {
+            color: #000000;
+            margin: 8px 0;
+            font-size: 15px;
+        }
+        
+        .custom-info {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background-color: white;
+            padding: 10px;
+            width: 280px;
+            box-shadow: 0 3px 14px rgba(0,0,0,0.2);
+            color: #000000; /* 添加黑色字体颜色 */
+        }
+        
+        .custom-info-title {
+            padding: 0 0 5px;
+            border-bottom: 1px solid #ccc;
+            font-size: 16px;
+            font-weight: 600;
+            color: #1a237e;
+        }
+        
+        .custom-info-content {
+            padding: 5px 0;
+            line-height: 1.5;
+            font-size: 14px;
+            color: #000000; /* 添加黑色字体颜色 */
+            font-weight: 500; /* 加粗字体 */
+        }
+        
+        .vessel-item, .port-item {
+            background: white;
+            border-radius: 8px;
+            margin: 10px 0;
+            padding: 12px;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            transition: all 0.2s;
+        }
+        
+        .vessel-item:hover, .port-item:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            transform: translateY(-2px);
+        }
+        
+        .item-name {
+            font-weight: 600;
+            color: #1a237e;
+        }
+        
+        .item-detail {
+            font-size: 12px;
+            color: #666;
+            margin: 4px 0;
+        }
+        
+        @media (max-width: 900px) {
+            .vessel-finder-sidebar {
+                display: none;
+            }
+            .vessel-finder-search {
+                width: 100%;
+            }
+            .vessel-finder-header {
+                flex-direction: column;
+                gap: 10px;
+            }
+            .sidebar { width: 60vw; min-width: 160px; padding:18px 8px;}
+            .sidebar.collapsed { transform: translateX(-60vw);}
+            .main-content { margin-left: 0; }
+            .port-map-container { min-height: 400px; }
+        }
+        @media (max-width: 600px) {
+            .navbar .brand {font-size:17px;}
+            .sidebar {padding-top: 7vw; transform: translateX(-60vw);}
+            .port-map-container { min-height: 300px; }
+        }
+        .active-region {
+            background: linear-gradient(90deg,#2563eb 0%,#00b4fc 100%) !important;
+            color: #ffd43b !important;
+            box-shadow: 0 0 10px #00b4fc66;
+        }
+        
+        /* 高德地图容器样式 */
+        #amap-container {
+            width: 100%;
+            height: 100%;
+            min-height: 600px;
+            border-radius: 0 0 18px 18px;
+        }
+    </style>
+</head>
+<body>
+    <!-- 顶栏控制按钮 -->
+    <button class="navbar-toggle" id="navbarToggle">▼</button>
+    
+    <!-- 顶栏 -->
+    <nav class="navbar" id="navbar">
+        <div class="brand">
+            <svg width="29" height="29" viewBox="0 0 100 100">
+                <circle cx="50" cy="50" r="46" fill="none" stroke="#00b4fc" stroke-width="7"/>
+                <circle cx="50" cy="50" r="33" fill="#ffd43b" opacity="0.20"/>
+                <circle cx="50" cy="50" r="23" fill="#00b4fc" opacity="0.60"/>
+            </svg>
+            远洋导航
+        </div>
+        <div class="nav-menu">
+            <button class="nav-btn" onclick="window.location.href='index.html'">主页</button>
+            <button class="nav-btn" onclick="window.location.href='route.html'">航线</button>
+            <button class="nav-btn" onclick="window.location.href='weather.html'">气象</button>
+            <button class="nav-btn active" onclick="window.location.href='port.html'">港口</button>
+            <button class="theme-toggle" title="切换主题" id="themeBtn">🌓</button>
+        </div>
+        <div class="nav-right">
+            <div id="userAvatarWrap" style="display:none;">
+                <img src="" alt="头像" class="avatar-img" id="userAvatar">
+                <span class="username" id="userName"></span>
+            </div>
+        </div>
+    </nav>
+    
+    <!-- 灵动侧边栏 -->
+    <aside class="sidebar" id="sidebar">
+        <button class="sidebar-toggle" id="sidebarToggleBtn">◀</button>
+        <button class="sidebar-btn" onclick="window.location.href='index.html'">🏠 主页</button>
+        <button class="sidebar-btn" onclick="window.location.href='weather.html'">🌦️ 气象风速</button>
+        <button class="sidebar-btn" onclick="window.location.href='route.html'">🛳️ 航线监控</button>
+        <button class="sidebar-btn active" onclick="window.location.href='port.html'">⚓ 港口信息</button>
+        <div class="sidebar-content" id="sidebarContent">
+            欢迎使用港口信息系统，查询全球主要港口与船舶动态。
+        </div>
+    </aside>
+    
+    <!-- 主内容区域 -->
+    <div class="main-content" id="mainContent">
+        <main id="main-port-area" class="section active">
+            <div class="port-map-container">
+                <div class="iframe-container">
+                    <div class="iframe-header">
+                        <h2>船舶港口追踪系统</h2>
+                        <div class="iframe-controls">
+                            <button id="asia-btn" class="active-region">亚洲</button>
+                            <button id="europe-btn">欧洲</button>
+                            <button id="americas-btn">美洲</button>
+                            <button id="global-btn">全球</button>
+                            <button id="port-btn">主要港口</button>
+                        </div>
+                    </div>
+                    <div id="vf-map-container" class="port-map-iframe">
+                        <!-- 高德地图将在此显示 -->
+                        <div id="amap-container"></div>
+                    </div>
+                    
+                    <!-- 信息面板 -->
+                    <div id="info-panel" class="info-panel" style="display:none;">
+                        <div class="panel-header">
+                            <h3 id="panel-title">信息</h3>
+                            <button id="close-panel" style="position:absolute; right:10px; top:10px; background:none; border:none; cursor:pointer; font-size:18px;">×</button>
+                        </div>
+                        <div id="panel-content">
+                            <!-- 动态内容将在这里显示 -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <script>
+        // ----------- 侧栏灵动切换 ---------
+        const sidebar = document.getElementById('sidebar');
+        const sidebarToggleBtn = document.getElementById('sidebarToggleBtn');
+        const mainContent = document.getElementById('mainContent');
+        
+        // 港口和船只数据
+        const portsData = [
+            { id: 1, name: "上海港", nameCN: "上海港", nameEN: "Shanghai Port", position: [121.489, 31.223], country: "中国", type: "集装箱,散货,原油" },
+            { id: 2, name: "宁波-舟山港", nameCN: "宁波-舟山港", nameEN: "Ningbo-Zhoushan Port", position: [121.867, 29.919], country: "中国", type: "集装箱,散货,原油" },
+            { id: 3, name: "深圳港", nameCN: "深圳港", nameEN: "Shenzhen Port", position: [114.257, 22.548], country: "中国", type: "集装箱,滚装" },
+            { id: 4, name: "广州港", nameCN: "广州港", nameEN: "Guangzhou Port", position: [113.484, 23.105], country: "中国", type: "集装箱,散货" },
+            { id: 5, name: "青岛港", nameCN: "青岛港", nameEN: "Qingdao Port", position: [120.316, 36.087], country: "中国", type: "集装箱,原油,铁矿石" },
+            { id: 6, name: "天津港", nameCN: "天津港", nameEN: "Tianjin Port", position: [117.199, 39.173], country: "中国", type: "集装箱,散货,原油" },
+            { id: 7, name: "新加坡港", nameCN: "新加坡港", nameEN: "Singapore Port", position: [103.819, 1.265], country: "新加坡", type: "集装箱,原油,散货" },
+            { id: 8, name: "釜山港", nameCN: "釜山港", nameEN: "Busan Port", position: [129.036, 35.116], country: "韩国", type: "集装箱,滚装" },
+            { id: 9, name: "鹿特丹港", nameCN: "鹿特丹港", nameEN: "Rotterdam Port", position: [4.401, 51.95], country: "荷兰", type: "集装箱,原油,散货" },
+            { id: 10, name: "安特卫普港", nameCN: "安特卫普港", nameEN: "Antwerp Port", position: [4.399, 51.219], country: "比利时", type: "集装箱,化工品" },
+            { id: 11, name: "汉堡港", nameCN: "汉堡港", nameEN: "Hamburg Port", position: [9.993, 53.551], country: "德国", type: "集装箱,滚装" },
+            { id: 12, name: "洛杉矶港", nameCN: "洛杉矶港", nameEN: "Los Angeles Port", position: [-118.272, 33.752], country: "美国", type: "集装箱,汽车" },
+            { id: 13, name: "长滩港", nameCN: "长滩港", nameEN: "Long Beach Port", position: [-118.207, 33.754], country: "美国", type: "集装箱,石油" },
+            { id: 14, name: "纽约-新泽西港", nameCN: "纽约-新泽西港", nameEN: "New York-New Jersey Port", position: [-74.06, 40.665], country: "美国", type: "集装箱,游轮" }
+        ];
+        
+                 // 模拟船只数据
+         const vesselsData = [
+             // 亚洲区域船舶
+             { id: 1, name: "远洋之星", type: "集装箱船", mmsi: "123456789", position: [121.45, 31.2], speed: 14, course: 87, heading: 90, destination: "上海港", flag: "中国", length: 366, width: 51, draft: 15.2, callsign: "BOEJ4" },
+             { id: 2, name: "海洋号", type: "油轮", mmsi: "234567890", position: [120.3, 36.0], speed: 10, course: 155, heading: 160, destination: "青岛港", flag: "中国", length: 274, width: 48, draft: 16.5, callsign: "BVRT2" },
+             { id: 3, name: "新世纪", type: "散货船", mmsi: "345678901", position: [121.8, 29.9], speed: 12, course: 270, heading: 275, destination: "宁波港", flag: "中国", length: 225, width: 32, draft: 13.8, callsign: "BSDF5" },
+             { id: 4, name: "龙腾号", type: "集装箱船", mmsi: "456789012", position: [113.4, 23.1], speed: 15, course: 180, heading: 185, destination: "广州港", flag: "中国", length: 299, width: 43, draft: 14.5, callsign: "BVCX7" },
+             { id: 5, name: "星辉号", type: "滚装船", mmsi: "567890123", position: [103.8, 1.25], speed: 18, course: 0, heading: 5, destination: "新加坡港", flag: "新加坡", length: 199, width: 32, draft: 9.8, callsign: "9VQW3" },
+             { id: 6, name: "泰荣", type: "油轮", mmsi: "678901234", position: [129.0, 35.1], speed: 8, course: 45, heading: 50, destination: "釜山港", flag: "韩国", length: 248, width: 43, draft: 15.0, callsign: "HLSD9" },
+             { id: 7, name: "东方明珠", type: "集装箱船", mmsi: "413678901", position: [122.1, 31.4], speed: 13, course: 120, heading: 125, destination: "上海港", flag: "中国", length: 320, width: 46, draft: 14.8, callsign: "BOJK5" },
+             { id: 8, name: "海上丝路", type: "集装箱船", mmsi: "413789012", position: [114.5, 22.3], speed: 16, course: 210, heading: 215, destination: "深圳港", flag: "中国", length: 334, width: 48, draft: 15.0, callsign: "BSRT7" },
+             { id: 9, name: "亚洲之星", type: "散货船", mmsi: "413890123", position: [118.2, 24.5], speed: 11, course: 95, heading: 98, destination: "厦门港", flag: "中国", length: 229, width: 32, draft: 12.5, callsign: "BVTY6" },
+             { id: 10, name: "太平洋勇士", type: "集装箱船", mmsi: "414012345", position: [126.8, 34.9], speed: 17, course: 65, heading: 68, destination: "釜山港", flag: "韩国", length: 305, width: 40, draft: 14.2, callsign: "HLBV4" },
+             { id: 11, name: "东海明珠", type: "散货船", mmsi: "414123456", position: [122.5, 30.8], speed: 9, course: 185, heading: 190, destination: "宁波港", flag: "中国", length: 245, width: 38, draft: 13.5, callsign: "BSDF8" },
+             { id: 12, name: "金色航线", type: "集装箱船", mmsi: "414234567", position: [104.2, 1.35], speed: 15, course: 270, heading: 275, destination: "新加坡港", flag: "新加坡", length: 285, width: 42, draft: 14.0, callsign: "9VMN5" },
+             { id: 13, name: "海洋卫士", type: "油轮", mmsi: "414345678", position: [127.5, 37.2], speed: 12, course: 15, heading: 18, destination: "仁川港", flag: "韩国", length: 265, width: 45, draft: 15.5, callsign: "HLQW2" },
+             { id: 14, name: "天津之星", type: "集装箱船", mmsi: "414456789", position: [117.8, 38.9], speed: 14, course: 135, heading: 140, destination: "天津港", flag: "中国", length: 295, width: 43, draft: 14.2, callsign: "BVBN3" },
+             { id: 15, name: "南海之光", type: "散货船", mmsi: "414567890", position: [110.2, 20.1], speed: 10, course: 225, heading: 230, destination: "湛江港", flag: "中国", length: 210, width: 30, draft: 12.0, callsign: "BSTY7" },
+             
+             // 欧洲区域船舶
+             { id: 16, name: "欧华号", type: "集装箱船", mmsi: "789012345", position: [4.4, 51.9], speed: 16, course: 330, heading: 335, destination: "鹿特丹港", flag: "荷兰", length: 350, width: 48, draft: 14.8, callsign: "PJKL7" },
+             { id: 17, name: "北海女神", type: "油轮", mmsi: "235678901", position: [8.7, 53.8], speed: 13, course: 290, heading: 295, destination: "汉堡港", flag: "德国", length: 285, width: 46, draft: 15.5, callsign: "DERT5" },
+             { id: 18, name: "地中海明珠", type: "邮轮", mmsi: "236789012", position: [12.5, 41.9], speed: 18, course: 175, heading: 180, destination: "罗马港", flag: "意大利", length: 310, width: 38, draft: 8.5, callsign: "IBVC2" },
+             { id: 19, name: "波罗的海", type: "散货船", mmsi: "237890123", position: [19.1, 54.4], speed: 11, course: 45, heading: 50, destination: "格但斯克港", flag: "波兰", length: 230, width: 32, draft: 12.8, callsign: "SQWE3" },
+             { id: 20, name: "英伦之星", type: "渡轮", mmsi: "238901234", position: [0.3, 51.5], speed: 20, course: 85, heading: 90, destination: "伦敦港", flag: "英国", length: 195, width: 28, draft: 6.5, callsign: "GBNM4" },
+             { id: 21, name: "北欧之光", type: "集装箱船", mmsi: "239012345", position: [10.7, 59.9], speed: 15, course: 10, heading: 15, destination: "奥斯陆港", flag: "挪威", length: 275, width: 40, draft: 13.5, callsign: "LATY6" },
+             { id: 22, name: "伊比利亚", type: "滚装船", mmsi: "240123456", position: [-9.1, 38.7], speed: 17, course: 220, heading: 225, destination: "里斯本港", flag: "葡萄牙", length: 210, width: 30, draft: 8.0, callsign: "CSTU7" },
+             { id: 23, name: "地中海之鹰", type: "集装箱船", mmsi: "241234567", position: [3.1, 42.3], speed: 14, course: 195, heading: 200, destination: "巴塞罗那港", flag: "西班牙", length: 290, width: 42, draft: 14.0, callsign: "EABC5" },
+             { id: 24, name: "波罗的海之星", type: "散货船", mmsi: "242345678", position: [24.8, 60.1], speed: 12, course: 30, heading: 35, destination: "赫尔辛基港", flag: "芬兰", length: 225, width: 32, draft: 12.5, callsign: "OHQW2" },
+             { id: 25, name: "爱琴海", type: "邮轮", mmsi: "243456789", position: [23.6, 37.9], speed: 19, course: 160, heading: 165, destination: "雅典港", flag: "希腊", length: 295, width: 36, draft: 8.2, callsign: "SVTY5" },
+             
+             // 美洲区域船舶
+             { id: 26, name: "太平洋之星", type: "散货船", mmsi: "890123456", position: [-118.27, 33.75], speed: 11, course: 225, heading: 230, destination: "洛杉矶港", flag: "美国", length: 245, width: 36, draft: 13.0, callsign: "WDC23" },
+             { id: 27, name: "大西洋勇士", type: "集装箱船", mmsi: "345789012", position: [-74.0, 40.7], speed: 15, course: 45, heading: 50, destination: "纽约港", flag: "美国", length: 320, width: 45, draft: 14.5, callsign: "WFG45" },
+             { id: 28, name: "美洲之鹰", type: "集装箱船", mmsi: "346890123", position: [-80.2, 25.8], speed: 16, course: 135, heading: 140, destination: "迈阿密港", flag: "美国", length: 305, width: 43, draft: 14.0, callsign: "WTY67" },
+             { id: 29, name: "加勒比明珠", type: "邮轮", mmsi: "347901234", position: [-79.9, 9.3], speed: 18, course: 270, heading: 275, destination: "巴拿马城港", flag: "巴拿马", length: 330, width: 40, draft: 8.8, callsign: "HP234" },
+             { id: 30, name: "安第斯之星", type: "散货船", mmsi: "348012345", position: [-79.5, -2.2], speed: 13, course: 190, heading: 195, destination: "瓜亚基尔港", flag: "厄瓜多尔", length: 235, width: 34, draft: 12.5, callsign: "HCVB5" },
+             { id: 31, name: "巴西航线", type: "集装箱船", mmsi: "349123456", position: [-46.3, -23.9], speed: 14, course: 85, heading: 90, destination: "桑托斯港", flag: "巴西", length: 290, width: 42, draft: 14.2, callsign: "PU567" },
+             { id: 32, name: "北美之光", type: "油轮", mmsi: "350234567", position: [-123.1, 49.3], speed: 12, course: 340, heading: 345, destination: "温哥华港", flag: "加拿大", length: 275, width: 44, draft: 15.0, callsign: "CFG45" },
+             { id: 33, name: "墨西哥湾", type: "油轮", mmsi: "351345678", position: [-95.3, 29.7], speed: 11, course: 170, heading: 175, destination: "休斯顿港", flag: "美国", length: 285, width: 46, draft: 15.5, callsign: "WJK78" },
+             { id: 34, name: "阿拉斯加", type: "散货船", mmsi: "352456789", position: [-149.9, 61.2], speed: 10, course: 15, heading: 20, destination: "安克雷奇港", flag: "美国", length: 225, width: 32, draft: 12.8, callsign: "WNM34" },
+             { id: 35, name: "智利之星", type: "集装箱船", mmsi: "353567890", position: [-71.6, -33.0], speed: 15, course: 205, heading: 210, destination: "瓦尔帕莱索港", flag: "智利", length: 280, width: 40, draft: 13.8, callsign: "CB789" }
+         ];
+        
+        sidebarToggleBtn.onclick = () => {
+            if(sidebar.classList.contains('collapsed')){
+                sidebar.classList.remove('collapsed');
+                mainContent.classList.remove('expanded');
+                sidebarToggleBtn.textContent = '◀';
+            }else{
+                sidebar.classList.add('collapsed');
+                mainContent.classList.add('expanded');
+                sidebarToggleBtn.textContent = '▶';
+            }
+        };
+
+        // 主题切换
+        const themeBtn = document.getElementById('themeBtn');
+        let isLight = false;
+        themeBtn.onclick = () => {
+            isLight = !isLight;
+            if(isLight){
+                document.documentElement.style.setProperty('--theme-dark-bg', 'var(--theme-light-bg)');
+                document.body.style.color = "#222";
+                themeBtn.textContent = "🌚";
+                document.querySelector('.navbar').style.background = "rgba(230,240,255,0.94)";
+            }else{
+                document.documentElement.style.setProperty('--theme-dark-bg', 'linear-gradient(135deg, #0e1336 0%, #202748 80%, #1d2548 100%)');
+                document.body.style.color = "#fff";
+                themeBtn.textContent = "🌓";
+                document.querySelector('.navbar').style.background = "rgba(24,32,61,0.92)";
+            }
+        };
+
+        // 顶栏自动隐藏功能
+        const navbar = document.getElementById('navbar');
+        const navbarToggle = document.getElementById('navbarToggle');
+        let isNavbarVisible = false;
+        function hideNavbar() {
+            navbar.classList.add('hidden');
+            navbarToggle.classList.remove('hidden');
+            isNavbarVisible = false;
+            navbarToggle.textContent = '▼';
+        }
+        function showNavbar() {
+            navbar.classList.remove('hidden');
+            navbarToggle.classList.remove('hidden');
+            isNavbarVisible = true;
+            navbarToggle.textContent = '▲';
+        }
+        navbarToggle.addEventListener('click', () => {
+            if (isNavbarVisible) {
+                hideNavbar();
+            } else {
+                showNavbar();
+            }
+        });
+        
+        // 高德地图相关变量
+        let map = null;
+        let portMarkers = [];
+        let vesselMarkers = [];
+        let infoWindow = null;
+        let currentRegion = 'asia';
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            showNavbar();
+            
+            // 更新侧边栏内容
+            document.getElementById('sidebarContent').innerHTML = `
+                <div style="padding: 0 15px;">
+                    <p>👋 欢迎使用船舶港口追踪系统</p>
+                    <p>你可以在地图上查看：</p>
+                    <ul>
+                        <li>全球船舶实时位置</li>
+                        <li>主要港口信息</li>
+                        <li>船舶详细数据</li>
+                        <li>航线规划与追踪</li>
+                    </ul>
+                    <div style="margin-top: 15px; font-size: 13px; color: #999;">
+                        数据由高德地图提供
+                    </div>
+                </div>
+            `;
+            
+            // 设置按钮事件
+            document.getElementById('asia-btn').addEventListener('click', () => loadRegion('asia'));
+            document.getElementById('europe-btn').addEventListener('click', () => loadRegion('europe'));
+            document.getElementById('americas-btn').addEventListener('click', () => loadRegion('americas'));
+            document.getElementById('global-btn').addEventListener('click', () => loadRegion('global'));
+            document.getElementById('port-btn').addEventListener('click', () => loadRegion('ports'));
+            
+            // 初始化高德地图
+            initMap();
+            
+            // 默认加载亚洲地区
+            loadRegion('asia');
+            
+            // 关闭信息面板按钮事件
+            document.getElementById('close-panel').addEventListener('click', () => {
+                document.getElementById('info-panel').style.display = 'none';
+            });
+        });
+        
+        // 初始化高德地图
+        function initMap() {
+            map = new AMap.Map('amap-container', {
+                zoom: 5,
+                center: [121.5, 31.3],
+                viewMode: '3D',
+                mapStyle: 'amap://styles/dark',
+                pitch: 0
+            });
+            
+            // 创建信息窗体
+            infoWindow = new AMap.InfoWindow({
+                offset: new AMap.Pixel(0, -30),
+                closeWhenClickMap: true
+            });
+            
+            // 添加地图控件
+            map.plugin(['AMap.ToolBar', 'AMap.Scale'], function() {
+                map.addControl(new AMap.ToolBar());
+                map.addControl(new AMap.Scale());
+            });
+        }
+        
+        // 切换区域显示
+        function loadRegion(region) {
+            // 更新按钮状态
+            document.querySelectorAll('.iframe-controls button').forEach(btn => {
+                btn.classList.remove('active-region');
+            });
+            
+            const regionBtn = document.getElementById(`${region}-btn`) || document.getElementById('asia-btn');
+            regionBtn.classList.add('active-region');
+            
+            currentRegion = region;
+            
+            // 清除现有标记
+            clearAllMarkers();
+            
+            // 根据区域设置地图中心和缩放级别
+            switch(region) {
+                case 'asia':
+                    map.setZoomAndCenter(5, [121.5, 31.3]);
+                    addPortsToMap(portsData.filter(port => 
+                        port.country === "中国" || 
+                        port.country === "新加坡" || 
+                        port.country === "韩国"));
+                    addVesselsToMap(vesselsData.filter(vessel => 
+                        vessel.position[0] > 100 && 
+                        vessel.position[0] < 140 && 
+                        vessel.position[1] > 0 && 
+                        vessel.position[1] < 50));
+                    break;
+                case 'europe':
+                    map.setZoomAndCenter(5, [5.0, 51.0]);
+                    addPortsToMap(portsData.filter(port => 
+                        port.country === "荷兰" || 
+                        port.country === "比利时" || 
+                        port.country === "德国"));
+                    addVesselsToMap(vesselsData.filter(vessel => 
+                        vessel.position[0] > -10 && 
+                        vessel.position[0] < 30 && 
+                        vessel.position[1] > 35 && 
+                        vessel.position[1] < 60));
+                    break;
+                case 'americas':
+                    map.setZoomAndCenter(4, [-80.0, 25.0]);
+                    addPortsToMap(portsData.filter(port => 
+                        port.country === "美国"));
+                    addVesselsToMap(vesselsData.filter(vessel => 
+                        vessel.position[0] > -130 && 
+                        vessel.position[0] < -65 && 
+                        vessel.position[1] > 20 && 
+                        vessel.position[1] < 50));
+                    break;
+                case 'ports':
+                    map.setZoomAndCenter(8, [121.5, 31.3]);
+                    addPortsToMap(portsData.filter(port => 
+                        port.position[0] > 120 && 
+                        port.position[0] < 123 && 
+                        port.position[1] > 30 && 
+                        port.position[1] < 32));
+                    addVesselsToMap(vesselsData.filter(vessel => 
+                        vessel.position[0] > 120 && 
+                        vessel.position[0] < 123 && 
+                        vessel.position[1] > 30 && 
+                        vessel.position[1] < 32));
+                    break;
+                case 'global':
+                default:
+                    map.setZoomAndCenter(2, [0.0, 25.0]);
+                    addPortsToMap(portsData);
+                    addVesselsToMap(vesselsData);
+                    break;
+            }
+            
+            showRegionSummary(region);
+        }
+        
+        // 显示区域摘要信息
+        function showRegionSummary(region) {
+            let title = "";
+            let content = "";
+            
+            switch(region) {
+                case 'asia':
+                    title = "亚洲主要港口";
+                    content = `
+                        <p style="color: #000000; font-weight: 500;">亚洲地区拥有世界上最繁忙的几个集装箱港口，包括上海港、新加坡港和宁波-舟山港。</p>
+                        <p style="color: #000000; font-weight: 500;">上海港是目前全球最大的集装箱港口，年吞吐量超过4000万标准箱。</p>
+                        <p style="color: #000000; font-weight: 500;">地图显示了中国、新加坡、韩国等亚洲主要港口及船舶。</p>
+                    `;
+                    break;
+                case 'europe':
+                    title = "欧洲主要港口";
+                    content = `
+                        <p style="color: #000000; font-weight: 500;">鹿特丹港是欧洲最大的港口，也是全球重要的物流中心。</p>
+                        <p style="color: #000000; font-weight: 500;">安特卫普港和汉堡港也是欧洲重要的集装箱枢纽。</p>
+                        <p style="color: #000000; font-weight: 500;">地图显示了荷兰、比利时、德国等欧洲主要港口及船舶。</p>
+                    `;
+                    break;
+                case 'americas':
+                    title = "美洲主要港口";
+                    content = `
+                        <p style="color: #000000; font-weight: 500;">洛杉矶港和长滩港构成了美国最大的港口复合体。</p>
+                        <p style="color: #000000; font-weight: 500;">纽约-新泽西港是美国东海岸最大的港口。</p>
+                        <p style="color: #000000; font-weight: 500;">地图显示了美国主要港口及船舶。</p>
+                    `;
+                    break;
+                case 'ports':
+                    title = "上海港详情";
+                    content = `
+                        <p style="color: #000000; font-weight: 500;">上海港是当前世界第一大集装箱港口，也是中国最重要的对外贸易门户。</p>
+                        <p style="color: #000000; font-weight: 500;">包括外高桥港区、洋山深水港区和宝山港区等多个港区。</p>
+                        <p style="color: #000000; font-weight: 500;">地图显示了上海港区域内的港口设施及船舶。</p>
+                    `;
+                    break;
+                case 'global':
+                default:
+                    title = "全球主要港口";
+                    content = `
+                        <p style="color: #000000; font-weight: 500;">地图显示了全球各大洲主要港口及船舶位置。</p>
+                        <p style="color: #000000; font-weight: 500;">点击任意港口或船舶图标查看详细信息。</p>
+                        <p style="color: #000000; font-weight: 500;">可通过顶部菜单切换不同地区视图。</p>
+                    `;
+                    break;
+            }
+            
+            // 显示信息面板
+            const infoPanel = document.getElementById('info-panel');
+            document.getElementById('panel-title').innerText = title;
+            document.getElementById('panel-content').innerHTML = content;
+            infoPanel.style.display = 'block';
+            
+            // 5秒后自动隐藏信息面板
+            setTimeout(() => {
+                infoPanel.style.display = 'none';
+            }, 5000);
+        }
+        
+        // 清除所有标记
+        function clearAllMarkers() {
+            if (portMarkers.length > 0) {
+                map.remove(portMarkers);
+                portMarkers = [];
+            }
+            
+            if (vesselMarkers.length > 0) {
+                map.remove(vesselMarkers);
+                vesselMarkers = [];
+            }
+        }
+        
+        // 添加港口标记到地图
+        function addPortsToMap(ports) {
+            ports.forEach(port => {
+                // 创建港口标记
+                const marker = new AMap.Marker({
+                    position: port.position,
+                    title: port.name,
+                    icon: new AMap.Icon({
+                        size: new AMap.Size(32, 32),
+                        image: 'https://webapi.amap.com/theme/v1.3/markers/n/mark_r.png',
+                        imageSize: new AMap.Size(32, 32)
+                    }),
+                    anchor: 'bottom-center',
+                    offset: new AMap.Pixel(0, 0)
+                });
+                
+                // 添加点击事件
+                marker.on('click', () => {
+                    showPortInfo(port);
+                });
+                
+                // 添加到地图
+                marker.setMap(map);
+                portMarkers.push(marker);
+            });
+        }
+        
+        // 添加船舶标记到地图
+        function addVesselsToMap(vessels) {
+            vessels.forEach(vessel => {
+                // 创建船舶图标
+                const vesselIcon = {
+                    type: 'image',
+                    image: 'https://webapi.amap.com/theme/v1.3/markers/n/mark_b.png',
+                    size: [32, 32],
+                    anchor: 'center'
+                };
+                
+                // 创建船舶标记
+                const marker = new AMap.Marker({
+                    position: vessel.position,
+                    title: vessel.name,
+                    icon: new AMap.Icon({
+                        size: new AMap.Size(32, 32),
+                        image: 'https://webapi.amap.com/theme/v1.3/markers/n/mark_b.png',
+                        imageSize: new AMap.Size(32, 32)
+                    }),
+                    angle: vessel.heading,
+                    anchor: 'center'
+                });
+                
+                // 添加点击事件
+                marker.on('click', () => {
+                    showVesselInfo(vessel);
+                });
+                
+                // 添加到地图
+                marker.setMap(map);
+                vesselMarkers.push(marker);
+            });
+        }
+        
+        // 显示港口信息
+        function showPortInfo(port) {
+            const content = `
+                <div class="custom-info">
+                    <div class="custom-info-title">${port.nameCN} (${port.nameEN})</div>
+                    <div class="custom-info-content">
+                        <p style="color: #000000; font-weight: 500;">国家/地区: ${port.country}</p>
+                        <p style="color: #000000; font-weight: 500;">港口类型: ${port.type}</p>
+                        <p style="color: #000000; font-weight: 500;">经度: ${port.position[0]}</p>
+                        <p style="color: #000000; font-weight: 500;">纬度: ${port.position[1]}</p>
+                    </div>
+                </div>
+            `;
+            
+            infoWindow.setContent(content);
+            infoWindow.open(map, port.position);
+        }
+        
+        // 显示船舶信息
+        function showVesselInfo(vessel) {
+            const content = `
+                <div class="custom-info">
+                    <div class="custom-info-title">${vessel.name}</div>
+                    <div class="custom-info-content">
+                        <p style="color: #000000; font-weight: 500;">船舶类型: ${vessel.type}</p>
+                        <p style="color: #000000; font-weight: 500;">MMSI: ${vessel.mmsi}</p>
+                        <p style="color: #000000; font-weight: 500;">航速: ${vessel.speed} 节</p>
+                        <p style="color: #000000; font-weight: 500;">航向: ${vessel.heading}°</p>
+                        <p style="color: #000000; font-weight: 500;">目的港: ${vessel.destination}</p>
+                        <p style="color: #000000; font-weight: 500;">船旗国: ${vessel.flag}</p>
+                        <p style="color: #000000; font-weight: 500;">呼号: ${vessel.callsign}</p>
+                        <p style="color: #000000; font-weight: 500;">尺寸: ${vessel.length}m × ${vessel.width}m</p>
+                        <p style="color: #000000; font-weight: 500;">吃水: ${vessel.draft}m</p>
+                    </div>
+                </div>
+            `;
+            
+            infoWindow.setContent(content);
+            infoWindow.open(map, vessel.position);
+        }
+    </script>
+</body>
+</html> 
