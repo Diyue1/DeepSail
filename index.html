@@ -3,297 +3,628 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>远洋导航系统</title>
-    <link rel="stylesheet" href="/DeepSail/styles.css">
-     <!-- 高德地图API（包含Weather插件） -->
-     <script>
-        window._AMapSecurityConfig = {
-            securityJsCode: '57d0aaf7828e40668a25a6bd239440da',
+    <title>远洋导航</title>
+    <link href="https://fonts.googleapis.com/css?family=Roboto:400,500,700" rel="stylesheet">
+    <!-- three.js & three-globe CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/globe.gl"></script>
+    <!-- 星尘粒子背景推荐canvas-confetti，可以替换为你的粒子库 -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        :root {
+            --blue-deep: #0e1336;
+            --blue-glow: #00b4fc;
+            --blue-dark: #202748;
+            --gold: #ffd43b;
+            --navy: #131c37;
+            --theme-light-bg: linear-gradient(135deg, #eff6ff 0%, #b6e2ff 100%);
+            --theme-dark-bg: linear-gradient(135deg, #0e1336 0%, #202748 80%, #1d2548 100%);
         }
-        </script>
-        <script src="https://webapi.amap.com/maps?v=2.0&key=97936dbf33c7b24831d89ce6e9adc1b9&plugin=AMap.Weather,AMap.ToolBar,AMap.Scale"></script>
-    </head>
-    <body>
-    <!-- 顶部导航栏 -->
-    <div class="top-navbar">
-        <div class="nav-container">
-            <div class="nav-item" onclick="window.location.href='index.html'">主页</div>
-            <div class="nav-item" onclick="window.location.href='contrast.html'">对比</div>
-            <div class="nav-item" onclick="window.location.href='2d.html'">2D</div>
-            <div class="nav-item" onclick="window.location.href='3d.html'">3D</div>
+        html,body {
+            min-height: 100vh;
+            background: var(--theme-dark-bg);
+            color: #fff;
+            font-family: 'Roboto', 'PingFang SC', 'Microsoft YaHei', Arial, sans-serif;
+        }
+        body {
+            margin: 0; padding: 0;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* 3D地球居中区域 */
+        #main-globe-area {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 80vh;
+            width: 100vw;
+            position: relative;
+            margin-top: 64px; /* 给顶栏留出空间 */
+            height: calc(100vh - 64px);
+        }
+        #globeViz {
+            flex: 1 1 0%;
+            height: 100%;
+            width: 100%;
+            background: transparent;
+            border-radius: 0;
+            margin: 0;
+            box-shadow: 0 0 48px 10px #00b4fc44, 0 8px 60px 8px #1d2548cc;
+            animation: floatGlobe 6s ease-in-out infinite alternate;
+        }
+        @keyframes floatGlobe {
+            0% { transform: translateY(0px) scale(1);}
+            100% { transform: translateY(-20px) scale(1.04);}
+        }
+        /* 粒子背景canvas */
+        #particle-bg {
+            position: fixed;
+            left:0; top:0; right:0; bottom:0;
+            width:100vw; height:100vh;
+            z-index: 0;
+            pointer-events:none;
+        }
+
+        /* 顶栏 */
+        .navbar {
+            width: 100vw;
+            height: 64px;
+            position: fixed; top:0; left:0; right:0;
+            z-index: 40;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(24,32,61,0.92);
+            box-shadow: 0 2px 12px #0e133622;
+            backdrop-filter: blur(6px);
+            padding: 0 24px;
+            transition: background 0.2s;
+        }
+        .navbar .brand {
+            font-size: 25px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            color: #00b4fc;
+            margin-right: 18px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            user-select:none;
+            animation: brandGlow 2.8s infinite alternate;
+        }
+        @keyframes brandGlow {
+            0% { filter: drop-shadow(0 0 4px #00b4fc);}
+            100% { filter: drop-shadow(0 0 14px #00f6fc);}
+        }
+        /* 顶栏导航按钮 */
+        .navbar .nav-menu {
+            display: flex; gap: 14px; align-items: center;
+        }
+        .nav-btn {
+            padding: 8px 24px;
+            border: none;
+            border-radius: 20px;
+            background: linear-gradient(90deg,#00b4fc 0%,#2563eb 100%);
+            color: #fff; font-size: 16px;
+            font-weight: 500; cursor: pointer;
+            box-shadow: 0 2px 8px #00b4fc33;
+            margin: 0 0 0 3px;
+            position: relative; overflow: hidden;
+            transition: background 0.16s, color 0.18s;
+        }
+        .nav-btn:hover {
+            color: #ffd43b;
+            background: linear-gradient(90deg,#2563eb 0%,#00b4fc 100%);
+            box-shadow: 0 0 14px #00f6fc88;
+        }
+        /* 顶栏右侧用户区 */
+        .navbar .nav-right {
+            display: flex; align-items: center; gap: 0;
+        }
+        .theme-toggle {
+            background: none;
+            border: none;
+            color: #fff;
+            font-size: 21px;
+            margin-left: 18px;
+            margin-right: 0;
+            cursor: pointer;
+            transition: color 0.18s;
+        }
+        .theme-toggle:hover { color: #ffd43b;}
+        .login-btn {
+            background: linear-gradient(90deg, #ffd43b 15%, #ffec70 100%);
+            color: #1a237e;
+            border: none;
+            border-radius: 18px;
+            padding: 7px 26px;
+            font-weight: 600;
+            font-size: 16px;
+            cursor: pointer;
+            box-shadow: 0 2px 7px #ffd43b33;
+            transition: background 0.17s, color 0.14s, box-shadow 0.14s;
+            margin-left: 8px;
+            margin-right: 96px;
+        }
+        .login-btn:hover { background:#fff066; color: #202748;}
+        .avatar-img {
+            width: 38px; height: 38px; border-radius: 50%;
+            border: 2px solid #00b4fc;
+            margin-right: 6px;
+            background: #fff;
+            object-fit: cover;
+            cursor: pointer;
+            transition: border 0.14s, box-shadow 0.14s;
+        }
+        .avatar-img:hover { border:2px solid #ffd43b; box-shadow:0 0 10px #ffd43b;}
+        .username {
+            font-size: 15px; color: #ffd43b;
+            font-weight: 500; margin-left:2px; cursor: pointer;
+        }
+
+        /* 灵动的侧边栏 */
+        .sidebar {
+            position: fixed;
+            left: 0; top: 64px; bottom: 0;
+            width: 230px;
+            background: rgba(22,32,61,0.98);
+            box-shadow: 2px 0 18px #1a237e22;
+            z-index: 30;
+            transition: transform 0.3s cubic-bezier(.65,0,.42,1.04);
+            display: flex; flex-direction: column; gap: 16px;
+            padding: 30px 0 0 0;
+            transform: translateX(0); /* 默认显示 */
+        }
+        .sidebar.collapsed {
+            transform: translateX(-230px);
+        }
+        .sidebar-toggle {
+            position: absolute;
+            top: 22px; right: -18px;
+            background: #00b4fc;
+            color: #fff;
+            border: none; border-radius: 10px 0 0 10px;
+            width: 36px; height: 36px;
+            font-size: 20px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 2px 0 8px #00b4fc33;
+        }
+        .sidebar-btn {
+            background: linear-gradient(90deg, #2563eb 0%, #00b4fc 100%);
+            border: none;
+            color: #fff; font-size: 16px; font-weight: 500;
+            border-radius: 12px;
+            padding: 10px 18px;
+            margin-bottom: 6px;
+            cursor: pointer;
+            transition: background 0.17s, color 0.16s;
+            text-align: left;
+        }
+        .sidebar-btn.active,
+        .sidebar-btn:hover {
+            color: #ffd43b;
+            background: linear-gradient(90deg, #00b4fc 0%, #2563eb 100%);
+        }
+        .sidebar-content {
+            margin-top: 22px; color: #fff;
+            font-size: 15px;
+            min-height: 120px;
+            line-height: 2;
+        }
+
+        /* 主内容区调整，给侧边栏让出空间 */
+        .main-content {
+            margin-left: 230px;
+            transition: margin-left 0.3s cubic-bezier(.65,0,.42,1.04);
+        }
+        .main-content.expanded {
+            margin-left: 0;
+        }
+
+        /* 其他功能区样式 */
+        .section {
+            display: none;
+            padding: 20px;
+            margin-top: 64px;
+            color: #fff;
+            min-height: calc(100vh - 64px);
+        }
+        .section.active {
+            display: block;
+        }
+
+        /* 响应式 */
+        @media (max-width: 900px) {
+            .sidebar { width: 60vw; min-width: 160px; padding:18px 8px;}
+            .sidebar.collapsed { transform: translateX(-60vw);}
+            .main-content { margin-left: 0; }
+            #globeViz { width: 95vw; height: 50vw; min-width:200px; min-height:200px;}
+        }
+        @media (max-width: 600px) {
+            .navbar .brand {font-size:17px;}
+            .sidebar {padding-top: 7vw; transform: translateX(-60vw);} /* 手机端默认收起 */
+            #globeViz { width: 97vw; height: 56vw;}
+        }
+        #userAvatarWrap {
+            display:none;
+            margin-right: 48px;
+        }
+        .navbar.hidden {
+            transform: translateY(-100%);
+        }
+        .navbar-toggle {
+            position: fixed;
+            top: 50%;
+            left: 0;
+            transform: translateY(-50%);
+            z-index: 50;
+            background: #00b4fc;
+            color: #fff;
+            border: none;
+            border-radius: 0 10px 10px 0;
+            width: 36px;
+            height: 36px;
+            font-size: 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 2px 0 8px #00b4fc33;
+            transition: all 0.3s ease;
+            opacity: 0.8;
+        }
+        .navbar-toggle:hover {
+            opacity: 1;
+            background: #2563eb;
+            box-shadow: 2px 0 12px #00b4fc66;
+        }
+        .navbar-toggle.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="particle-bg"></canvas>
+    <!-- 顶栏控制按钮 -->
+    <button class="navbar-toggle" id="navbarToggle">▼</button>
+    
+    <!-- 顶栏 -->
+    <nav class="navbar" id="navbar">
+        <div class="brand">
+            <svg width="29" height="29" viewBox="0 0 100 100">
+                <circle cx="50" cy="50" r="46" fill="none" stroke="#00b4fc" stroke-width="7"/>
+                <circle cx="50" cy="50" r="33" fill="#ffd43b" opacity="0.20"/>
+                <circle cx="50" cy="50" r="23" fill="#00b4fc" opacity="0.60"/>
+            </svg>
+            远洋导航
         </div>
-    </div>
-    
-    <div class="data_bodey">
-        <div class="clear"></div>
-        <div class="index_tabs">
-            <div class="inner">
-                
-                <!-- 左侧栏 -->
-                <div class="left_cage">
-                    <!-- 高德地图实景 -->
-                    <div class="dataAllBorder01 cage_cl">
-                        <div class="dataAllBorder02">
-                            <div id="leftMap" class="map"></div>
-                            <div class="map-controls">
-                                <button id="switchToSatellite" class="map-btn">卫星图</button>
-                                <button id="switchToRoadmap" class="map-btn">路网图</button>
-                                <button id="locateShip" class="map-btn">定位船舶</button>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- 滚动的航线信息 -->
-                    <div class="dataAllBorder01 cage_cl">
-                        <div class="dataAllBorder02">
-                            <div class="route_scroll_container">
-                                <div class="route_scroll_box">
-                                    <!-- 航线信息内容 -->
-                                    <div class="route_scroll">
-                                        <div class="scroll_top">
-                                            <span class="scroll_title">航线更新</span>
-                                            <span class="scroll_level scroll_level01">重要</span>
-                                            <span class="scroll_timer">17-09-13/9:52</span>
-                                        </div>
-                                        <div class="route_cage">
-                                            <p><label>当前位置</label>：东经 121.49° 北纬 31.24°</p>
-                                            <p><label>下一航点</label>：东经 122.12° 北纬 30.56°</p>
-                                            <p><label>预计到达</label>：2023-05-15 14:30</p>
-                                        </div>
-                                    </div>
-                                    <div class="route_scroll">
-                                        <div class="scroll_top">
-                                            <span class="scroll_title">气象预警</span>
-                                            <span class="scroll_level scroll_level02">注意</span>
-                                            <span class="scroll_timer">17-09-13/10:15</span>
-                                        </div>
-                                        <div class="route_cage">
-                                            <p><label>预警区域</label>：东海海域</p>
-                                            <p><label>预警类型</label>：6级大风</p>
-                                            <p><label>影响时间</label>：2023-05-15 13:00至18:00</p>
-                                        </div>
-                                    </div>
-                                    <div class="route_scroll">
-                                        <div class="scroll_top">
-                                            <span class="scroll_title">航线优化</span>
-                                            <span class="scroll_level scroll_level03">提示</span>
-                                            <span class="scroll_timer">17-09-13/10:30</span>
-                                        </div>
-                                        <div class="route_cage">
-                                            <p><label>优化原因</label>：避开渔船密集区</p>
-                                            <p><label>新航点</label>：东经 121.78° 北纬 30.89°</p>
-                                            <p><label>预计延迟</label>：约15分钟</p>
-                                        </div>
-                                    </div>
-                                    <div class="route_scroll">
-                                        <div class="scroll_top">
-                                            <span class="scroll_title">设备状态</span>
-                                            <span class="scroll_level scroll_level03">正常</span>
-                                            <span class="scroll_timer">17-09-13/11:00</span>
-                                        </div>
-                                        <div class="route_cage">
-                                            <p><label>GPS</label>：信号良好</p>
-                                            <p><label>AIS</label>：正常运行</p>
-                                            <p><label>雷达</label>：无异常</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-    
-                <!-- 中间栏：高德地图 -->
-                <div class="center_cage">
-                    <!-- 增大地图区域 -->
-                    <div class="dataAllBorder01 cage_cl center-map-container">
-                        <div class="dataAllBorder02">
-                            <div class="map_title_box" style="height: 40px;">
-                                <div class="map_title_innerbox">
-                                    <div class="map_title">海上航线监测系统</div>
-                                </div>
-                            </div>
-                            <div id="centerMap" class="map"></div>
-                            <div class="map_tool_outbox">
-                                <span class="map_tool" title="全图" onclick="resetMapView()">
-                                    <a class="map_tool_inner"></a>
-                                </span>
-                                <span class="map_tool" title="放大" onclick="zoomIn()">
-                                    <a class="map_tool_inner" style="background-position-x:-36px"></a>
-                                </span>
-                                <span class="map_tool" title="缩小" onclick="zoomOut()">
-                                    <a class="map_tool_inner" style="background-position-x:-72px"></a>
-                                </span>
-                                <span class="map_tool" title="清除航线" onclick="clearPolyline()">
-                                    <a class="map_tool_inner" style="background-position-x:-144px"></a>
-                                </span>
-                                <input type="text" id="txtCoord" placeholder="点击地图获取坐标" readonly>
-                            </div>
-                        </div>
-                    </div>
-                    <!-- 缩小航线数据区域 -->
-                    <div class="dataAllBorder01 cage_cl route-data-container">
-                        <div class="dataAllBorder02">
-                            <div class="map_title_box" style="height: 30px;">
-                                <div class="map_title_innerbox">
-                                    <div class="map_titl">航线坐标数据</div>
-                                </div>
-                            </div>
-                            <div class="route-select-container">
-                                <div class="route-select-group">
-                                    <label for="startPort">起点：</label>
-                                    <input type="text" id="startPort" placeholder="输入起点">
-                                </div>
-                                <div class="route-select-group">
-                                    <label for="endPort">终点：</label>
-                                    <input type="text" id="endPort" placeholder="输入终点">
-                                </div>
-                                <button id="loadRouteBtn" class="map-btn">确定航线</button>
-                            </div>                            
-                            <div class="route-data-scroll">
-                                <table class="route-data-table">
-                                    <thead>
-                                        <tr>
-                                            <th width="15%">航点</th>
-                                            <th width="42.5%">经度</th>
-                                            <th width="42.5%">纬度</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="routeData"></tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- 右侧栏（天气和港口信息） -->
-                <div class="right_cage">
-                    <!-- 天气预报（使用高德AMap.Weather插件） -->
-                    <div class="dataAllBorder01 cage_cl">
-                        <div class="dataAllBorder02">
-                            <div class="weather_header">
-                                <span class="weather_title">天气预报</span>
-                                <span class="weather_update">更新时间: <span id="weatherTime">--</span></span>
-                            </div>
-                            <div class="weather_content">
-                                <div class="weather_main">
-                                    <div class="weather_icon">
-                                        <img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='40' fill='none' stroke='%23ffd43b' stroke-width='8'/><circle cx='50' cy='50' r='30' fill='none' stroke='%23ffd43b' stroke-width='8' stroke-dasharray='15,10'/></svg>" alt="天气" id="weatherIcon">
-                                    </div>
-                                    <div class="weather_info">
-                                        <div class="weather_temp" id="weatherTemp">--°C</div>
-                                        <div class="weather_desc" id="weatherDesc">--</div>
-                                        <div class="weather_error" id="weatherError"></div>
-                                    </div>
-                                </div>
-                                <div class="weather_details">
-                                    <div class="weather_item">
-                                        <span class="weather_label">能见度:</span>
-                                        <span class="weather_value" id="weatherVisibility">--</span>
-                                    </div>
-                                    <div class="weather_item">
-                                        <span class="weather_label">气压:</span>
-                                        <span class="weather_value" id="weatherPressure">-- hPa</span>
-                                    </div>
-                                    <div class="weather_item">
-                                        <span class="weather_label">湿度:</span>
-                                        <span class="weather_value" id="weatherHumidity">--%</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- 风向风速（使用高德AMap.Weather数据） -->
-                    <div class="dataAllBorder01 cage_cl">
-                        <div class="dataAllBorder02">
-                            <div class="wind_header">
-                                <span class="wind_title">风向风速监测</span>
-                                <span class="wind_update">实时更新</span>
-                            </div>
-                            <div class="wind_content">
-                                <div class="wind_direction">
-                                    <div class="wind_compass">
-                                        <div class="compass_arrow" id="windArrow"></div>
-                                    </div>
-                                    <div class="wind_info">
-                                        <div class="wind_value" id="windDirection">--</div>
-                                        <div class="wind_degree" id="windDegree">--°</div>
-                                    </div>
-                                </div>
-                                <div class="wind_speed">
-                                    <div class="speed_meter">
-                                        <div class="meter_needle" id="speedNeedle"></div>
-                                    </div>
-                                    <div class="speed_info">
-                                        <div class="speed_value" id="windSpeed">--</div>
-                                        <div class="speed_unit">节</div>
-                                    </div>
-                                </div>
-                                <div class="wind_wave">
-                                    <div class="wave_icon">
-                                        <img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 50'><path d='M0 25 Q25 15 50 25 T100 25' fill='none' stroke='%233498db' stroke-width='3'/><path d='M0 35 Q25 25 50 35 T100 35' fill='none' stroke='%233498db' stroke-width='3'/></svg>" alt="浪高">
-                                    </div>
-                                    <div class="wave_info">
-                                        <div class="wave_value">--</div>
-                                        <div class="wave_unit">米</div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-    
-                    <!-- 港口信息 -->
-                    <div class="dataAllBorder01 cage_cl">
-                        <div class="dataAllBorder02">
-                            <div class="port_header">
-                                <span class="port_title">港口信息</span>
-                                <div class="port_switch">
-                                    <button class="port_btn port_btn_active" data-port="shanghai">上海港</button>
-                                    <button class="port_btn" data-port="ningbo">宁波港</button>
-                                    <button class="port_btn" data-port="qingdao">青岛港</button>
-                                </div>
-                            </div>
-                            <div class="port_content port_shanghai active">
-                                <div class="port_info">
-                                    <p><label>港口名称</label>: 上海港</p>
-                                    <p><label>地理位置</label>: 东经 121.49° 北纬 31.24°</p>
-                                    <p><label>潮汐情况</label>: 涨潮 14:30 | 落潮 20:45</p>
-                                    <p><label>水深</label>: 主航道 12-15米</p>
-                                    <p><label>泊位情况</label>: 15/20 (占用/总数)</p>
-                                    <p><label>预计等待时间</label>: 2-4小时</p>
-                                </div>
-                            </div>
-                            <div class="port_content port_ningbo">
-                                <div class="port_info">
-                                    <p><label>港口名称</label>: 宁波港</p>
-                                    <p><label>地理位置</label>: 东经 121.71° 北纬 29.86°</p>
-                                    <p><label>潮汐情况</label>: 涨潮 13:15 | 落潮 19:30</p>
-                                    <p><label>水深</label>: 主航道 18-22米</p>
-                                    <p><label>泊位情况</label>: 22/30 (占用/总数)</p>
-                                    <p><label>预计等待时间</label>: 1-3小时</p>
-                                </div>
-                            </div>
-                            <div class="port_content port_qingdao">
-                                <div class="port_info">
-                                    <p><label>港口名称</label>: 青岛港</p>
-                                    <p><label>地理位置</label>: 东经 120.32° 北纬 36.07°</p>
-                                    <p><label>潮汐情况</label>: 涨潮 15:45 | 落潮 21:15</p>
-                                    <p><label>水深</label>: 主航道 14-17米</p>
-                                    <p><label>泊位情况</label>: 18/25 (占用/总数)</p>
-                                    <p><label>预计等待时间</label>: 3-5小时</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+        <div class="nav-menu">
+            <button class="nav-btn" onclick="window.location.href='index.html'">主页</button>
+            <button class="nav-btn" onclick="window.location.href='route.html'">航线</button>
+            <button class="nav-btn" onclick="window.location.href='weather.html'">气象</button>
+            <button class="nav-btn" onclick="window.location.href='port.html'">港口</button>
+            <button class="theme-toggle" title="切换主题" id="themeBtn">🌓</button>
+        </div>
+        <div class="nav-right">
+            <div id="userAvatarWrap" style="display:none;">
+                <img src="" alt="头像" class="avatar-img" id="userAvatar">
+                <span class="username" id="userName"></span>
             </div>
         </div>
+    </nav>
+    
+    <!-- 灵动侧边栏 -->
+    <aside class="sidebar" id="sidebar">
+        <button class="sidebar-toggle" id="sidebarToggleBtn">◀</button>
+        <button class="sidebar-btn active" onclick="window.location.href='index.html'">🏠 主页</button>
+        <button class="sidebar-btn" onclick="window.location.href='weather.html'">🌦️ 气象风速</button>
+        <button class="sidebar-btn" onclick="window.location.href='route.html'">🛳️ 航线监控</button>
+        <button class="sidebar-btn" onclick="window.location.href='port.html'">⚓ 港口信息</button>
+        <div class="sidebar-content" id="sidebarContent">
+            欢迎使用灵动侧栏，点击按钮切换不同功能区。
+        </div>
+    </aside>
+    
+    <!-- 主内容区域 -->
+    <div class="main-content" id="mainContent">
+        <!-- 主体区域：高端3D地球显示区 -->
+        <main id="main-globe-area" class="section active">
+            <div id="globeViz"></div>
+        </main>
+        
+        <!-- 其他功能区内容 -->
+        <section id="section-route" class="section">
+            <h3>航线监控</h3>
+            <div style="margin-top:10px;">此区域可放航线列表、路径图、数据表等内容。</div>
+        </section>
+        <section id="section-weather" class="section">
+            <h3>气象风速</h3>
+            <div style="margin-top:10px;">此区域可集成气象API、风速图、预警等内容。</div>
+        </section>
+        <section id="section-port" class="section">
+            <h3>港口信息</h3>
+            <div style="margin-top:10px;">此区域可展示各港口实时数据、泊位、潮汐等。</div>
+        </section>
     </div>
+    
+    <!-- THREE.GLOBE初始化脚本 -->
+    <script>
+        // ----------- 3D地球初始化 ----------
+        let world;
+        function initGlobe() {
+            const globeContainer = document.getElementById('globeViz');
+            world = new Globe(globeContainer)
+                .globeImageUrl('https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg')
+                .bumpImageUrl('https://unpkg.com/three-globe/example/img/earth-topology.png');
+            // 自动旋转
+            world.controls().autoRotate = true;
+            world.controls().autoRotateSpeed = 0.35;
+            
+            // 添加DEEPSAIL文字、横线和远洋导航系统文字
+            addTextToGlobe();
+        }
+        
+        // 添加文字和横线到地球上方
+        function addTextToGlobe() {
+            // 创建文字容器
+            const textContainer = document.createElement('div');
+            textContainer.style.position = 'absolute';
+            textContainer.style.top = '50%';
+            textContainer.style.left = '50%';
+            textContainer.style.transform = 'translate(-50%, -50%)';
+            textContainer.style.textAlign = 'center';
+            textContainer.style.zIndex = '10';
+            textContainer.style.pointerEvents = 'none'; // 允许点击穿透
+            textContainer.style.width = '80%';
+            textContainer.style.maxWidth = '600px';
+            
+            // 创建DEEPSAIL文字
+            const mainTitle = document.createElement('div');
+            mainTitle.textContent = 'DEEPSAIL';
+            mainTitle.style.fontSize = '5vw';
+            mainTitle.style.fontWeight = 'bold';
+            mainTitle.style.letterSpacing = '0.5vw';
+            mainTitle.style.color = '#ffffff';
+            mainTitle.style.textShadow = '0 0 15px rgba(0, 180, 252, 0.8)';
+            mainTitle.style.fontFamily = 'Arial, sans-serif';
+            
+            // 创建横线
+            const line = document.createElement('div');
+            line.style.width = '100%';
+            line.style.height = '4px';
+            line.style.background = 'linear-gradient(90deg, rgba(255,255,255,0.4) 0%, rgba(0,180,252,1) 50%, rgba(255,255,255,0.4) 100%)';
+            line.style.marginTop = '1vw';
+            line.style.marginBottom = '1vw';
+            line.style.boxShadow = '0 0 10px rgba(0, 180, 252, 0.8)';
+            
+            // 创建远洋导航系统文字
+            const subTitle = document.createElement('div');
+            subTitle.textContent = '远洋气象导航系统';
+            subTitle.style.fontSize = '2vw';
+            subTitle.style.fontWeight = '500';
+            subTitle.style.color = '#ffffff';
+            subTitle.style.textShadow = '0 0 10px rgba(0, 180, 252, 0.6)';
+            subTitle.style.background = 'linear-gradient(to bottom, #ffffff, #00b4fc)';
+            subTitle.style.webkitBackgroundClip = 'text';
+            subTitle.style.backgroundClip = 'text';
+            subTitle.style.webkitTextFillColor = 'transparent';
+            subTitle.style.fontFamily = 'Microsoft YaHei, sans-serif';
+            
+            // 添加半透明背景，增强文字可读性
+            const bgOverlay = document.createElement('div');
+            bgOverlay.style.position = 'absolute';
+            bgOverlay.style.top = '50%';
+            bgOverlay.style.left = '50%';
+            bgOverlay.style.transform = 'translate(-50%, -50%)';
+            bgOverlay.style.width = '100%';
+            bgOverlay.style.height = '100%';
+            bgOverlay.style.background = 'radial-gradient(circle, rgba(14, 19, 54, 0.4) 0%, rgba(0,0,0,0) 70%)';
+            bgOverlay.style.borderRadius = '50%';
+            bgOverlay.style.zIndex = '5';
+            bgOverlay.style.pointerEvents = 'none';
+            
+            // 组装文字容器
+            textContainer.appendChild(mainTitle);
+            textContainer.appendChild(line);
+            textContainer.appendChild(subTitle);
+            
+            // 添加到DOM
+            const globeContainer = document.getElementById('globeViz');
+            globeContainer.style.position = 'relative';
+            globeContainer.appendChild(bgOverlay);
+            globeContainer.appendChild(textContainer);
+            
+            // 添加响应式调整
+            window.addEventListener('resize', () => {
+                // 根据窗口大小调整字体大小
+                const width = window.innerWidth;
+                if (width < 600) {
+                    mainTitle.style.fontSize = '8vw';
+                    subTitle.style.fontSize = '3.5vw';
+                } else if (width < 900) {
+                    mainTitle.style.fontSize = '6vw';
+                    subTitle.style.fontSize = '2.5vw';
+                } else {
+                    mainTitle.style.fontSize = '5vw';
+                    subTitle.style.fontSize = '2vw';
+                }
+            });
+        }
+        
+        // 页面加载完成后初始化地球
+        window.addEventListener('load', () => {
+            // 直接显示主页内容
+                showSection('main');
+            setTimeout(initGlobe, 100);
+        });
 
-<!-- 隐藏的天气地图容器（用于初始化天气插件） -->
-<div id="weatherMap" style="display:none;"></div>
+        // --------- 灵动微动画粒子背景 ---------
+        function runParticles() {
+            confetti({
+                particleCount: 20,
+                spread: 180,
+                startVelocity: 10,
+                origin: { y: Math.random()*0.25 + 0.08, x: Math.random()*0.6+0.2 },
+                colors: ['#00b4fc','#ffd43b','#38bdf8','#202748'],
+                ticks: 100,
+            });
+        }
+        setInterval(runParticles, 3000);
 
-<script src="/DeepSail/script.js"></script>
+        // 主题切换
+        const themeBtn = document.getElementById('themeBtn');
+        let isLight = false;
+        themeBtn.onclick = () => {
+            isLight = !isLight;
+            if(isLight){
+                document.documentElement.style.setProperty('--theme-dark-bg', 'var(--theme-light-bg)');
+                document.body.style.color = "#222";
+                themeBtn.textContent = "🌚";
+                document.querySelector('.navbar').style.background = "rgba(230,240,255,0.94)";
+            }else{
+                document.documentElement.style.setProperty('--theme-dark-bg', 'linear-gradient(135deg, #0e1336 0%, #202748 80%, #1d2548 100%)');
+                document.body.style.color = "#fff";
+                themeBtn.textContent = "🌓";
+                document.querySelector('.navbar').style.background = "rgba(24,32,61,0.92)";
+            }
+        };
+
+        // ----------- 侧栏灵动切换 ---------
+        const sidebar = document.getElementById('sidebar');
+        const sidebarToggleBtn = document.getElementById('sidebarToggleBtn');
+        const mainContent = document.getElementById('mainContent');
+        
+        sidebarToggleBtn.onclick = () => {
+            if(sidebar.classList.contains('collapsed')){
+                sidebar.classList.remove('collapsed');
+                mainContent.classList.remove('expanded');
+                sidebarToggleBtn.textContent = '◀';
+            }else{
+                sidebar.classList.add('collapsed');
+                mainContent.classList.add('expanded');
+                sidebarToggleBtn.textContent = '▶';
+            }
+        };
+
+        // ----------- 顶栏/侧栏切换功能区内容 --------
+        function showSection(section){
+            // 隐藏所有区域
+            document.querySelectorAll('.section').forEach(sec => {
+                sec.classList.remove('active');
+            });
+            
+            // 显示选中区域
+            if(section === 'main') {
+                document.getElementById('main-globe-area').classList.add('active');
+            } else {
+                document.getElementById('section-' + section).classList.add('active');
+            }
+            
+            // 侧栏按钮高亮
+            document.querySelectorAll('.sidebar-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // 找到主页按钮并高亮
+            document.querySelector('.sidebar-btn[onclick="window.location.href=\'index.html\'"]').classList.add('active');
+            
+            // 侧栏内容区动态提示
+            const sidebarContent = document.getElementById('sidebarContent');
+            const contentTexts = {
+                'main': "3D地球，支持交互旋转缩放。",
+                'route': "航线监控与数据可视化区。", 
+                'weather': "气象风速监控与预警。",
+                'port': "港口信息与泊位、潮汐查询。"
+            };
+            sidebarContent.textContent = contentTexts[section] || "3D地球，支持交互旋转缩放。";
+        }
+        
+        // 默认显示地球
+        showSection('main');
+
+        // ----------- 登录头像区 ---------------
+        const loginBtn = document.getElementById('loginBtn');
+        const userAvatarWrap = document.getElementById('userAvatarWrap');
+        const userAvatar = document.getElementById('userAvatar');
+        const userName = document.getElementById('userName');
+        
+        // 头像生成API（DiceBear）
+        function randomAvatar(seed) {
+            return `https://api.dicebear.com/7.x/adventurer/svg?seed=${seed||Math.floor(Math.random()*99999)}`;
+        }
+        
+        // 登录模拟 - 移除localStorage使用
+        let currentUser = null;
+        
+        function renderUserUI() {
+            if(currentUser){
+                loginBtn.style.display = "none";
+                userAvatarWrap.style.display = "flex";
+                userAvatar.src = currentUser.avatar || randomAvatar(currentUser.name);
+                userName.textContent = currentUser.name;
+            }else{
+                loginBtn.style.display = "inline-block";
+                userAvatarWrap.style.display = "none";
+            }
+        }
+        
+        loginBtn.onclick = function(){
+            // 模拟登录
+            currentUser = {
+                name: "海洋探索者",
+                avatar: randomAvatar("ocean_user")
+            };
+            renderUserUI();
+        };
+        
+        userAvatar.onclick = function(){
+            if(currentUser) {
+                currentUser.avatar = randomAvatar();
+                renderUserUI();
+            }
+        };
+        
+        userName.onclick = function(){
+            if(currentUser) {
+                let nn = prompt("请输入新昵称(10字内)", currentUser.name);
+                if(nn && nn.length<=10){
+                    currentUser.name = nn;
+                    renderUserUI();
+                }
+            }
+        };
+        
+        renderUserUI();
+
+        // 顶栏自动隐藏功能
+        const navbar = document.getElementById('navbar');
+        const navbarToggle = document.getElementById('navbarToggle');
+        let isNavbarVisible = false;
+        function hideNavbar() {
+            navbar.classList.add('hidden');
+            navbarToggle.classList.remove('hidden');
+            isNavbarVisible = false;
+            navbarToggle.textContent = '▼';
+        }
+        function showNavbar() {
+            navbar.classList.remove('hidden');
+            navbarToggle.classList.remove('hidden');
+            isNavbarVisible = true;
+            navbarToggle.textContent = '▲';
+        }
+        navbarToggle.addEventListener('click', () => {
+            if (isNavbarVisible) {
+                hideNavbar();
+            } else {
+                showNavbar();
+            }
+        });
+        document.addEventListener('DOMContentLoaded', () => {
+            hideNavbar();
+        });
+
+        // ----------------- End -----------------
+    </script>
 </body>
 </html>
