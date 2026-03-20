@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>离线 - DeepSail 远洋导航</title>
+    <style>
+        :root { --blue-deep: #0e1336; --blue-glow: #00b4fc; }
+        html, body {
+            margin: 0; padding: 0;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #0e1336 0%, #202748 80%, #1d2548 100%);
+            color: #fff;
+            font-family: 'PingFang SC', 'Microsoft YaHei', Arial, sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+        .container { padding: 40px 20px; max-width: 500px; }
+        .icon { font-size: 80px; margin-bottom: 24px; }
+        h1 { font-size: 28px; color: #00b4fc; margin-bottom: 16px; }
+        p { font-size: 16px; color: #adb5bd; line-height: 1.6; margin-bottom: 24px; }
+        .retry-btn {
+            display: inline-block;
+            padding: 12px 32px;
+            background: linear-gradient(90deg, #00b4fc, #2563eb);
+            color: #fff;
+            border: none;
+            border-radius: 24px;
+            font-size: 16px;
+            cursor: pointer;
+            text-decoration: none;
+            transition: opacity 0.2s;
+        }
+        .retry-btn:hover { opacity: 0.85; }
+        .features {
+            margin-top: 32px;
+            padding: 20px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 12px;
+            text-align: left;
+        }
+        .features h3 { color: #ffd43b; margin: 0 0 12px; font-size: 14px; }
+        .features ul { margin: 0; padding-left: 20px; color: #adb5bd; font-size: 13px; line-height: 2; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="icon" role="img" aria-label="离线状态">🚢</div>
+        <h1>当前处于离线状态</h1>
+        <p>无法连接到网络。请检查您的网络连接后重试。</p>
+        <button class="retry-btn" onclick="window.location.reload()" aria-label="重新连接">
+            重新连接
+        </button>
+        <div class="features">
+            <h3>网络恢复后可使用以下功能：</h3>
+            <ul>
+                <li>实时航线监控</li>
+                <li>海洋气象预报</li>
+                <li>全球港口信息</li>
+                <li>3D 地球可视化</li>
+            </ul>
+        </div>
+    </div>
+    <script>
+        window.addEventListener('online', () => window.location.reload());
+    </script>
+</body>
+</html>
