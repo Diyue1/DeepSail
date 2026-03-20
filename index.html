@@ -53,6 +53,29 @@
             height: 100%;
             min-height: 60vh;
             border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .globe-loading-spinner {
+            width: 56px; height: 56px;
+            border: 4px solid rgba(0,180,252,0.2);
+            border-top-color: #00b4fc;
+            border-radius: 50%;
+            animation: globeSpin 1s linear infinite;
+            box-shadow: 0 0 20px rgba(0,180,252,0.3);
+        }
+        @keyframes globeSpin { to { transform: rotate(360deg); } }
+        .globe-loading-text {
+            color: rgba(0,180,252,0.7);
+            font-size: 14px;
+            letter-spacing: 2px;
+            animation: textPulse 1.5s ease-in-out infinite alternate;
+        }
+        @keyframes textPulse {
+            from { opacity: 0.5; } to { opacity: 1; }
         }
 
         html, body {
@@ -317,6 +340,8 @@
             #globeViz { animation: none; }
             .brand { animation: none; }
             .skeleton { animation: none; }
+            .globe-loading-spinner { animation: none; }
+            .globe-loading-text { animation: none; opacity: 1; }
         }
 
         /* ── High Contrast ── */
@@ -384,7 +409,10 @@
     <div class="main-content" id="mainContent">
         <main id="main-globe-area" tabindex="-1" aria-label="3D地球可视化区域">
             <!-- Skeleton loader shown while globe.gl loads -->
-            <div id="globe-skeleton" class="skeleton skeleton-globe" aria-busy="true" aria-label="地球加载中"></div>
+            <div id="globe-skeleton" class="skeleton skeleton-globe" aria-busy="true" aria-label="地球加载中">
+                <div class="globe-loading-spinner" aria-hidden="true"></div>
+                <div class="globe-loading-text">LOADING GLOBE...</div>
+            </div>
             <div id="globeViz" aria-label="3D互动地球" role="img" style="display:none;"></div>
         </main>
     </div>
