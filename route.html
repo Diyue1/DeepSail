@@ -3,9 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>航线 - 远洋导航</title>
-    <link href="https://fonts.googleapis.com/css?family=Roboto:400,500,700" rel="stylesheet">
-    <script src="https://webapi.amap.com/maps?v=2.0&key=97936dbf33c7b24831d89ce6e9adc1b9"></script>
+    <meta name="description" content="DeepSail 航线监控 - 实时海运航线规划与船舶追踪">
+    <meta name="theme-color" content="#00b4fc">
+    <title>航线监控 - DeepSail 远洋导航</title>
+
+    <link rel="manifest" href="/manifest.json">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <script src="/js/common.js" defer></script>
+
     <style>
         :root {
             --blue-deep: #0e1336;
@@ -16,21 +23,57 @@
             --theme-light-bg: linear-gradient(135deg, #eff6ff 0%, #b6e2ff 100%);
             --theme-dark-bg: linear-gradient(135deg, #0e1336 0%, #202748 80%, #1d2548 100%);
         }
-        html,body {
+        html, body {
             min-height: 100vh;
             background: var(--theme-dark-bg);
             color: #fff;
             font-family: 'Roboto', 'PingFang SC', 'Microsoft YaHei', Arial, sans-serif;
-        }
-        body {
             margin: 0; padding: 0;
-            min-height: 100vh;
             overflow-x: hidden;
         }
+
+        /* ── Skeleton ── */
+        .skeleton {
+            background: linear-gradient(90deg, #1a2550 25%, #263060 50%, #1a2550 75%);
+            background-size: 200% 100%;
+            animation: skeleton-shimmer 1.5s infinite;
+            border-radius: 4px;
+        }
+        @keyframes skeleton-shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+        .skeleton-map {
+            width: 100%;
+            height: 100%;
+            min-height: 300px;
+        }
+        .skeleton-overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%,-50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            color: #adb5bd;
+        }
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(0,180,252,0.3);
+            border-top-color: #00b4fc;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ── Navbar ── */
         .navbar {
             width: 100vw;
             height: 64px;
-            position: fixed; top:0; left:0; right:0;
+            position: fixed; top: 0; left: 0; right: 0;
             z-index: 40;
             display: flex;
             align-items: center;
@@ -38,92 +81,64 @@
             background: rgba(24,32,61,0.92);
             box-shadow: 0 2px 12px #0e133622;
             backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
             padding: 0 24px;
-            transition: background 0.2s;
+            transition: background 0.2s, transform 0.3s;
         }
+        .navbar.hidden { transform: translateY(-100%); }
         .brand {
-            font-size: 25px;
+            font-size: 22px;
             font-weight: 700;
-            letter-spacing: 1px;
             color: #00b4fc;
-            margin-right: 18px;
             display: flex;
             align-items: center;
             gap: 10px;
-            user-select:none;
+            user-select: none;
             animation: brandGlow 2.8s infinite alternate;
         }
         @keyframes brandGlow {
-            0% { filter: drop-shadow(0 0 4px #00b4fc);}
-            100% { filter: drop-shadow(0 0 14px #00f6fc);}
+            0% { filter: drop-shadow(0 0 4px #00b4fc); }
+            100% { filter: drop-shadow(0 0 14px #00f6fc); }
         }
-        .navbar .nav-menu {
-            display: flex; gap: 14px; align-items: center;
-        }
+        .navbar .nav-menu { display: flex; gap: 10px; align-items: center; }
         .nav-btn {
-            padding: 8px 24px;
+            padding: 7px 18px;
             border: none;
             border-radius: 20px;
-            background: linear-gradient(90deg,#00b4fc 0%,#2563eb 100%);
-            color: #fff; font-size: 16px;
-            font-weight: 500; cursor: pointer;
-            box-shadow: 0 2px 8px #00b4fc33;
-            margin: 0 0 0 3px;
-            position: relative; overflow: hidden;
+            background: linear-gradient(90deg, #00b4fc 0%, #2563eb 100%);
+            color: #fff; font-size: 14px; font-weight: 500;
+            cursor: pointer;
             transition: background 0.16s, color 0.18s;
+            text-decoration: none;
+            display: inline-block;
         }
-        .nav-btn:hover {
+        .nav-btn:hover, .nav-btn:focus {
             color: #ffd43b;
-            background: linear-gradient(90deg,#2563eb 0%,#00b4fc 100%);
-            box-shadow: 0 0 14px #00f6fc88;
+            background: linear-gradient(90deg, #2563eb 0%, #00b4fc 100%);
+            outline: 2px solid #00b4fc;
+            outline-offset: 2px;
         }
+        .nav-btn.active { color: #ffd43b; }
         .theme-toggle {
-            background: none;
-            border: none;
-            color: #fff;
-            font-size: 21px;
-            margin-left: 18px;
-            margin-right: 0;
-            cursor: pointer;
-            transition: color 0.18s;
+            background: none; border: none; color: #fff;
+            font-size: 21px; margin-left: 12px; cursor: pointer;
+            padding: 4px; border-radius: 4px;
         }
-        .theme-toggle:hover { color: #ffd43b;}
-        .navbar .nav-right {
-            display: flex; align-items: center; gap: 0;
+        .theme-toggle:hover { color: #ffd43b; }
+        .navbar-toggle {
+            position: fixed; top: 50%; left: 0;
+            transform: translateY(-50%);
+            z-index: 50;
+            background: #00b4fc; color: #fff;
+            border: none; border-radius: 0 10px 10px 0;
+            width: 36px; height: 36px; font-size: 18px;
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+            box-shadow: 2px 0 8px #00b4fc33;
+            transition: all 0.3s; opacity: 0.85;
         }
-        .login-btn {
-            background: linear-gradient(90deg, #ffd43b 15%, #ffec70 100%);
-            color: #1a237e;
-            border: none;
-            border-radius: 18px;
-            padding: 7px 26px;
-            font-weight: 600;
-            font-size: 16px;
-            cursor: pointer;
-            box-shadow: 0 2px 7px #ffd43b33;
-            transition: background 0.17s, color 0.14s, box-shadow 0.14s;
-            margin-left: 8px;
-            margin-right: 96px;
-        }
-        .login-btn:hover { background:#fff066; color: #202748;}
-        .avatar-img {
-            width: 38px; height: 38px; border-radius: 50%;
-            border: 2px solid #00b4fc;
-            margin-right: 6px;
-            background: #fff;
-            object-fit: cover;
-            cursor: pointer;
-            transition: border 0.14s, box-shadow 0.14s;
-        }
-        .avatar-img:hover { border:2px solid #ffd43b; box-shadow:0 0 10px #ffd43b;}
-        .username {
-            font-size: 15px; color: #ffd43b;
-            font-weight: 500; margin-left:2px; cursor: pointer;
-        }
-        #userAvatarWrap {
-            display:none;
-            margin-right: 48px;
-        }
+        .navbar-toggle:hover, .navbar-toggle:focus { opacity: 1; background: #2563eb; }
+
+        /* ── Sidebar ── */
         .sidebar {
             position: fixed;
             left: 0; top: 64px; bottom: 0;
@@ -132,253 +147,231 @@
             box-shadow: 2px 0 18px #1a237e22;
             z-index: 30;
             transition: transform 0.3s cubic-bezier(.65,0,.42,1.04);
-            display: flex; flex-direction: column; gap: 16px;
-            padding: 30px 0 0 0;
-            transform: translateX(0); /* 默认显示 */
+            display: flex; flex-direction: column; gap: 10px;
+            padding: 24px 12px 0;
         }
-        .sidebar.collapsed {
-            transform: translateX(-230px);
-        }
+        .sidebar.collapsed { transform: translateX(-230px); }
         .sidebar-toggle {
-            position: absolute;
-            top: 22px; right: -18px;
-            background: #00b4fc;
-            color: #fff;
+            position: absolute; top: 22px; right: -18px;
+            background: #00b4fc; color: #fff;
             border: none; border-radius: 10px 0 0 10px;
-            width: 36px; height: 36px;
-            font-size: 20px; cursor: pointer;
-            display: flex; align-items: center; justify-content: center;
-            box-shadow: 2px 0 8px #00b4fc33;
+            width: 36px; height: 36px; font-size: 18px;
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
         }
         .sidebar-btn {
             background: linear-gradient(90deg, #2563eb 0%, #00b4fc 100%);
-            border: none;
-            color: #fff; font-size: 16px; font-weight: 500;
-            border-radius: 12px;
-            padding: 10px 18px;
-            margin-bottom: 6px;
-            cursor: pointer;
-            transition: background 0.17s, color 0.16s;
-            text-align: left;
+            border: none; color: #fff; font-size: 15px; font-weight: 500;
+            border-radius: 10px; padding: 10px 16px; cursor: pointer;
+            transition: background 0.17s; text-align: left;
+            text-decoration: none; display: block;
         }
-        .sidebar-btn.active,
-        .sidebar-btn:hover {
+        .sidebar-btn.active, .sidebar-btn:hover, .sidebar-btn:focus {
             color: #ffd43b;
             background: linear-gradient(90deg, #00b4fc 0%, #2563eb 100%);
+            outline: none;
         }
         .sidebar-content {
-            margin-top: 22px; color: #fff;
-            font-size: 15px;
-            min-height: 120px;
-            line-height: 2;
+            margin-top: 8px; color: #adb5bd;
+            font-size: 13px; line-height: 1.7; padding: 0 4px;
         }
+
+        /* ── Layout ── */
         .main-content {
             margin-left: 230px;
             transition: margin-left 0.3s cubic-bezier(.65,0,.42,1.04);
             height: calc(100vh - 64px);
+            margin-top: 64px;
             display: flex;
             flex-direction: column;
         }
-        .main-content.expanded {
-            margin-left: 0;
-            height: calc(100vh - 64px);
-        }
-        .section {
-            display: none;
-            padding: 0;
-            margin-top: 0;
-            color: #fff;
-            height: 100%;
-        }
-        .section.active {
-            display: flex;
-            flex-direction: column;
-            height: 100%;
-        }
+        .main-content.expanded { margin-left: 0; }
+
+        /* ── Map Area ── */
         #amap {
+            flex: 1;
             width: 100%;
-            height: calc(100vh - 64px - 120px);
+            background: #1a2550;
+            position: relative;
+            overflow: hidden;
             min-height: 300px;
-            background: #222;
-            position: relative; /* 添加相对定位 */
         }
+        #map-skeleton {
+            position: absolute;
+            inset: 0;
+            z-index: 5;
+        }
+
+        /* ── Route Info Bar ── */
         .route-info {
-            padding: 12px 20px;
-            background: rgba(30, 38, 67, 0.95);
+            padding: 10px 20px;
+            background: rgba(30, 38, 67, 0.97);
             color: #fff;
             display: flex;
-            gap: 20px;
-            font-size: 14px;
-            border-top: 1px solid rgba(0, 180, 252, 0.3);
+            flex-wrap: wrap;
+            gap: 16px;
+            font-size: 13px;
+            border-top: 1px solid rgba(0,180,252,0.3);
+            flex-shrink: 0;
         }
-        .route-info-item {
+        .route-info-item { display: flex; align-items: center; gap: 6px; }
+        .route-info-value { font-weight: 700; color: var(--gold); }
+
+        /* ── Control Panel ── */
+        .control-panel {
+            padding: 10px 20px;
+            background: rgba(24,32,61,0.97);
             display: flex;
             align-items: center;
-            gap: 8px;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 10px;
+            flex-shrink: 0;
+            border-top: 1px solid rgba(0,180,252,0.15);
         }
-        .route-info-value {
-            font-weight: bold;
-            color: var(--gold);
-        }
-        /* Windy地图叠加层样式 */
-        .windy-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 10;
-            pointer-events: none; /* 默认不接收鼠标事件，点击穿透到下方地图 */
-            opacity: 0;
-            visibility: hidden;
-            transition: opacity 0.5s ease, visibility 0.5s ease;
-        }
-        .windy-overlay.active {
-            opacity: 0.7; /* 半透明显示 */
-            visibility: visible;
-        }
-        .windy-iframe {
-            width: 100%;
-            height: 100%;
-            border: none;
-        }
-        /* 气象图层切换按钮 */
-        .weather-toggle {
-            position: absolute;
-            top: 15px;
-            right: 15px;
-            z-index: 20;
-            background: rgba(14, 19, 54, 0.8);
-            color: #fff;
-            border: none;
+        .control-inputs { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+        .control-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+        .port-label { font-weight: 500; color: #adb5bd; font-size: 13px; white-space: nowrap; }
+        .port-input {
+            padding: 6px 10px;
             border-radius: 6px;
-            padding: 8px 15px;
+            border: 1px solid rgba(0,180,252,0.4);
+            background: rgba(14,19,54,0.8);
+            color: #fff;
+            width: 130px;
             font-size: 13px;
+            transition: border-color 0.2s;
+        }
+        .port-input:focus {
+            outline: none;
+            border-color: #00b4fc;
+            box-shadow: 0 0 0 2px rgba(0,180,252,0.2);
+        }
+
+        .action-btn {
+            padding: 7px 18px;
+            border-radius: 6px;
+            border: none;
             font-weight: 500;
             cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+        .action-btn-primary { background: #00b4fc; color: #fff; }
+        .action-btn-primary:hover, .action-btn-primary:focus {
+            background: #2563eb;
+            outline: 2px solid #00b4fc;
+        }
+        .action-btn-danger { background: #e74c3c; color: #fff; }
+        .action-btn-danger:hover, .action-btn-danger:focus {
+            background: #c0392b;
+            outline: 2px solid #e74c3c;
+        }
+        .action-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        #routeMsg {
+            color: #ffd43b;
+            font-size: 13px;
+            min-width: 120px;
+            role: status;
+        }
+
+        /* ── Error display ── */
+        .error-banner {
+            background: rgba(231,76,60,0.15);
+            border: 1px solid #e74c3c;
+            border-radius: 6px;
+            padding: 8px 14px;
+            color: #fff;
+            font-size: 13px;
             display: flex;
             align-items: center;
-            gap: 6px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-            transition: all 0.2s ease;
+            gap: 8px;
         }
-        .weather-toggle:hover {
-            background: rgba(0, 180, 252, 0.8);
+
+        /* ── Windy overlay ── */
+        .windy-overlay {
+            position: absolute;
+            inset: 0;
+            z-index: 10;
+            pointer-events: none;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.5s, visibility 0.5s;
         }
-        .weather-toggle.active {
-            background: rgba(255, 212, 59, 0.8);
-            color: #0e1336;
+        .windy-overlay.active {
+            opacity: 0.7;
+            visibility: visible;
         }
-        /* 气象图层交互控制按钮 */
+        .windy-iframe { width: 100%; height: 100%; border: none; }
+
+        .weather-toggle {
+            position: absolute;
+            top: 12px; right: 12px;
+            z-index: 20;
+            background: rgba(14,19,54,0.85);
+            color: #fff;
+            border: none; border-radius: 6px;
+            padding: 7px 13px; font-size: 13px;
+            cursor: pointer;
+            display: flex; align-items: center; gap: 5px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            transition: background 0.2s;
+        }
+        .weather-toggle:hover { background: rgba(0,180,252,0.8); }
+        .weather-toggle.active { background: rgba(255,212,59,0.8); color: #0e1336; }
+
         .windy-controls {
             position: absolute;
-            bottom: 15px;
-            right: 15px;
+            bottom: 12px; right: 12px;
             z-index: 20;
-            background: rgba(14, 19, 54, 0.8);
-            border-radius: 6px;
-            padding: 8px;
-            display: none;
-            flex-direction: column;
-            gap: 8px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+            background: rgba(14,19,54,0.88);
+            border-radius: 6px; padding: 8px;
+            display: none; flex-direction: column; gap: 6px;
         }
-        .windy-controls.active {
-            display: flex;
-        }
+        .windy-controls.active { display: flex; }
         .windy-control-btn {
-            background: rgba(0, 180, 252, 0.6);
-            color: #fff;
-            border: none;
-            border-radius: 4px;
-            padding: 6px 10px;
-            font-size: 12px;
-            cursor: pointer;
-            transition: all 0.2s ease;
+            background: rgba(0,180,252,0.6); color: #fff;
+            border: none; border-radius: 4px;
+            padding: 5px 10px; font-size: 12px; cursor: pointer;
+            transition: background 0.2s;
         }
-        .windy-control-btn:hover {
-            background: rgba(0, 180, 252, 0.9);
-        }
-        .windy-control-slider {
-            width: 100%;
-            margin: 5px 0;
-        }
+        .windy-control-btn:hover { background: rgba(0,180,252,0.9); }
+        .windy-control-slider { width: 100%; margin: 4px 0; }
+
+        /* ── Responsive ── */
         @media (max-width: 900px) {
-            .sidebar { width: 60vw; min-width: 160px; padding:18px 8px;}
-            .sidebar.collapsed { transform: translateX(-60vw);}
+            .sidebar { width: 65vw; max-width: 220px; }
+            .sidebar.collapsed { transform: translateX(-65vw); }
             .main-content { margin-left: 0; }
-            #amap { min-width:200px; min-height:200px;}
+        }
+        @media (max-width: 768px) {
+            .control-inputs { gap: 8px; }
+            .port-input { width: 110px; }
+            .nav-btn { padding: 6px 10px; font-size: 13px; }
         }
         @media (max-width: 600px) {
-            .navbar .brand {font-size:17px;}
-            .sidebar {padding-top: 7vw; transform: translateX(-60vw);} /* 手机端默认收起 */
-            #amap { min-width:120px; min-height:120px;}
+            .navbar { padding: 0 12px; }
+            .brand { font-size: 16px; }
+            .sidebar { transform: translateX(-100%); }
+            .control-panel { flex-direction: column; align-items: flex-start; }
+            .control-inputs { flex-direction: column; align-items: flex-start; }
+            .port-input { width: 100%; }
         }
-        .navbar.hidden {
-            transform: translateY(-100%);
-        }
-        .navbar-toggle {
-            position: fixed;
-            top: 50%;
-            left: 0;
-            transform: translateY(-50%);
-            z-index: 50;
-            background: #00b4fc;
-            color: #fff;
-            border: none;
-            border-radius: 0 10px 10px 0;
-            width: 36px;
-            height: 36px;
-            font-size: 20px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 2px 0 8px #00b4fc33;
-            transition: all 0.3s ease;
-            opacity: 0.8;
-        }
-        .navbar-toggle:hover {
-            opacity: 1;
-            background: #2563eb;
-            box-shadow: 2px 0 12px #00b4fc66;
-        }
-        .navbar-toggle.hidden {
-            opacity: 0;
-            pointer-events: none;
-        }
-        .loading {
-            display: none;
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: rgba(14, 19, 54, 0.8);
-            padding: 15px 25px;
-            border-radius: 8px;
-            box-shadow: 0 0 15px rgba(0, 180, 252, 0.4);
-            color: #fff;
-            z-index: 100;
-        }
-        .loading.active {
-            display: block;
-            animation: pulse 1.5s infinite;
-        }
-        @keyframes pulse {
-            0% { box-shadow: 0 0 15px rgba(0, 180, 252, 0.4); }
-            50% { box-shadow: 0 0 25px rgba(0, 180, 252, 0.7); }
-            100% { box-shadow: 0 0 15px rgba(0, 180, 252, 0.4); }
+        @media (prefers-reduced-motion: reduce) {
+            .navbar, .sidebar, .main-content { transition: none; }
+            .skeleton { animation: none; background: #1a2550; }
+            .loading-spinner { animation: none; }
         }
     </style>
 </head>
 <body>
-    <!-- 顶栏控制按钮 -->
-    <button class="navbar-toggle" id="navbarToggle">▼</button>
-    
-    <!-- 顶栏 -->
-    <nav class="navbar" id="navbar">
+    <button class="navbar-toggle" id="navbarToggle"
+            aria-label="显示导航栏" aria-controls="navbar" aria-expanded="false">▼</button>
+
+    <nav class="navbar" id="navbar" role="navigation" aria-label="主导航">
         <div class="brand">
-            <svg width="29" height="29" viewBox="0 0 100 100">
+            <svg width="26" height="26" viewBox="0 0 100 100" aria-hidden="true" focusable="false">
                 <circle cx="50" cy="50" r="46" fill="none" stroke="#00b4fc" stroke-width="7"/>
                 <circle cx="50" cy="50" r="33" fill="#ffd43b" opacity="0.20"/>
                 <circle cx="50" cy="50" r="23" fill="#00b4fc" opacity="0.60"/>
@@ -386,479 +379,405 @@
             远洋导航
         </div>
         <div class="nav-menu">
-            <button class="nav-btn" onclick="window.location.href='index.html'">主页</button>
-            <button class="nav-btn active" onclick="window.location.href='route.html'">航线</button>
-            <button class="nav-btn" onclick="window.location.href='weather.html'">气象</button>
-            <button class="nav-btn" onclick="window.location.href='port.html'">港口</button>
-            <button class="theme-toggle" title="切换主题" id="themeBtn">🌓</button>
-        </div>
-        <div class="nav-right">
-            <div id="userAvatarWrap" style="display:none;">
-                <img src="" alt="头像" class="avatar-img" id="userAvatar">
-                <span class="username" id="userName"></span>
-            </div>
+            <a class="nav-btn" href="index.html">主页</a>
+            <a class="nav-btn active" href="route.html" aria-current="page">航线</a>
+            <a class="nav-btn" href="weather.html">气象</a>
+            <a class="nav-btn" href="port.html">港口</a>
+            <button class="theme-toggle" id="themeBtn" aria-label="切换主题">🌓</button>
         </div>
     </nav>
-    <!-- 灵动侧边栏 -->
-    <aside class="sidebar" id="sidebar">
-        <button class="sidebar-toggle" id="sidebarToggleBtn">◀</button>
-        <button class="sidebar-btn" onclick="window.location.href='index.html'">🏠 主页</button>
-        <button class="sidebar-btn" onclick="window.location.href='weather.html'">🌦️ 气象风速</button>
-        <button class="sidebar-btn active" onclick="window.location.href='route.html'">🛳️ 航线监控</button>
-        <button class="sidebar-btn" onclick="window.location.href='port.html'">⚓ 港口信息</button>
-        <div class="sidebar-content" id="sidebarContent">
-            欢迎使用灵动侧栏，点击按钮切换不同功能区。
+
+    <aside class="sidebar" id="sidebar" role="complementary" aria-label="功能导航">
+        <button class="sidebar-toggle" id="sidebarToggleBtn" aria-label="收起侧边栏">◀</button>
+        <a class="sidebar-btn" href="index.html">🏠 主页</a>
+        <a class="sidebar-btn" href="weather.html">🌦️ 气象风速</a>
+        <a class="sidebar-btn active" href="route.html" aria-current="page">🛳️ 航线监控</a>
+        <a class="sidebar-btn" href="port.html">⚓ 港口信息</a>
+        <div class="sidebar-content" id="sidebarContent" aria-live="polite">
+            <strong>常用港口：</strong><br>
+            上海、广州、天津、青岛、新加坡、釜山、鹿特丹、洛杉矶
         </div>
     </aside>
-    <!-- 主内容区域 -->
+
     <div class="main-content" id="mainContent">
-        <main id="main-route-area" class="section active">
-            <div id="amap">
-                <!-- Windy地图叠加层 -->
-                <div class="windy-overlay" id="windyOverlay">
-                        <iframe 
-                            class="windy-iframe"
-                        id="windyIframe"
-                        src="https://embed.windy.com/embed2.html?lat=30&lon=130&zoom=4&level=surface&overlay=wind&product=ecmwf&menu=&message=&marker=&calendar=&pressure=&type=map&location=coordinates&detail=&metricWind=default&metricTemp=%C2%B0C&radarRange=-1"
-                            frameborder="0">
-                        </iframe>
+        <main id="main-route-area" tabindex="-1" aria-label="航线监控区域">
+
+            <!-- Map container -->
+            <div id="amap" role="region" aria-label="航线地图">
+                <!-- Skeleton loader -->
+                <div id="map-skeleton" class="skeleton skeleton-map" aria-busy="true" aria-label="地图加载中">
+                    <div class="skeleton-overlay">
+                        <div class="loading-spinner" aria-hidden="true"></div>
+                        <span>地图加载中...</span>
+                    </div>
                 </div>
-                <!-- 气象图层切换按钮 -->
-                <button class="weather-toggle" id="weatherToggle">
-                    <span id="weatherIcon">🌦️</span> 显示气象图层
+
+                <!-- Windy overlay -->
+                <div class="windy-overlay" id="windyOverlay" aria-label="气象图层">
+                    <iframe class="windy-iframe" id="windyIframe"
+                            title="Windy气象图层" frameborder="0"
+                            loading="lazy"></iframe>
+                </div>
+
+                <!-- Weather toggle button -->
+                <button class="weather-toggle" id="weatherToggle" aria-pressed="false"
+                        aria-label="显示气象图层">
+                    🌦️ 显示气象图层
                 </button>
-                <!-- 气象图层控制面板 -->
-                <div class="windy-controls" id="windyControls">
+
+                <!-- Windy controls -->
+                <div class="windy-controls" id="windyControls" role="group" aria-label="气象图层控制">
                     <button class="windy-control-btn" id="windLayerBtn">风力图层</button>
                     <button class="windy-control-btn" id="rainLayerBtn">降水图层</button>
                     <button class="windy-control-btn" id="tempLayerBtn">温度图层</button>
                     <button class="windy-control-btn" id="wavesLayerBtn">海浪图层</button>
-                    <div style="margin-top: 5px;">
-                        <label style="color: #fff; font-size: 12px; display: block; margin-bottom: 3px;">透明度</label>
-                        <input type="range" id="opacitySlider" min="10" max="90" value="70" class="windy-control-slider">
+                    <div>
+                        <label for="opacitySlider" style="color:#fff;font-size:11px;display:block;margin-bottom:3px;">
+                            透明度
+                        </label>
+                        <input type="range" id="opacitySlider" min="10" max="90" value="70"
+                               class="windy-control-slider" aria-label="气象图层透明度">
                     </div>
                     <button class="windy-control-btn" id="syncMapBtn">同步地图位置</button>
                 </div>
             </div>
-            <div class="route-info">
+
+            <!-- Route Info -->
+            <div class="route-info" role="status" aria-live="polite" aria-label="航线信息">
                 <div class="route-info-item">
                     <span>总距离:</span>
-                    <span id="totalDistance" class="route-info-value">0</span>
+                    <span id="totalDistance" class="route-info-value">—</span>
                     <span>海里</span>
                 </div>
                 <div class="route-info-item">
                     <span>预计航行时间:</span>
-                    <span id="estimatedTime" class="route-info-value">0</span>
-                    <span>天 (按照平均航速20节计算)</span>
+                    <span id="estimatedTime" class="route-info-value">—</span>
+                    <span>天（按平均航速20节）</span>
                 </div>
             </div>
-            <div style="padding: 12px 24px; background:rgba(24,32,61,0.95); z-index:2; height: 80px; display: flex; align-items: center; justify-content: space-between;">
-                <div style="display: flex; align-items: center; gap: 16px;">
-                    <label style="font-weight: 500; color: #fff; min-width: 70px;">出发港口:</label>
-                    <input id="startPortName" type="text" placeholder="如：上海" style="padding: 6px 10px; border-radius: 6px; border: 1px solid #ccc; width: 150px; font-size: 13px;">
-                    <label style="font-weight: 500; color: #fff; min-width: 70px;">目的港口:</label>
-                    <input id="endPortName" type="text" placeholder="如：广州" style="padding: 6px 10px; border-radius: 6px; border: 1px solid #ccc; width: 150px; font-size: 13px;">
+
+            <!-- Control Panel -->
+            <div class="control-panel">
+                <div class="control-inputs">
+                    <label class="port-label" for="startPortName">出发港口:</label>
+                    <input id="startPortName" type="text" class="port-input"
+                           placeholder="如：上海" aria-label="出发港口名称"
+                           autocomplete="off" list="port-suggestions">
+                    <label class="port-label" for="endPortName">目的港口:</label>
+                    <input id="endPortName" type="text" class="port-input"
+                           placeholder="如：广州" aria-label="目的港口名称"
+                           autocomplete="off" list="port-suggestions">
+                    <datalist id="port-suggestions">
+                        <option value="上海"><option value="广州"><option value="天津">
+                        <option value="青岛"><option value="宁波"><option value="大连">
+                        <option value="深圳"><option value="厦门"><option value="新加坡">
+                        <option value="釜山"><option value="鹿特丹"><option value="汉堡">
+                        <option value="洛杉矶"><option value="伦敦"><option value="悉尼">
+                    </datalist>
                 </div>
-                <div style="display: flex; align-items: center; gap: 12px;">
-                    <button id="drawRouteBtn" style="padding: 8px 20px; border-radius: 6px; background: #00b4fc; color: #fff; border: none; font-weight: 500; cursor: pointer; font-size: 13px;">查询/绘制</button>
-                    <button id="clearRouteBtn" style="padding: 8px 20px; border-radius: 6px; background: #ff6b6b; color: #fff; border: none; font-weight: 500; cursor: pointer; font-size: 13px;">清理航线</button>
-                    <span id="routeMsg" style="color: #ffd43b; font-size: 13px;"></span>
+                <div class="control-actions">
+                    <button id="drawRouteBtn" class="action-btn action-btn-primary"
+                            aria-label="查询并绘制航线">查询/绘制</button>
+                    <button id="clearRouteBtn" class="action-btn action-btn-danger"
+                            aria-label="清除当前航线">清理航线</button>
+                    <div id="routeMsg" role="status" aria-live="polite" aria-label="航线状态"></div>
                 </div>
             </div>
-            <div id="loading" class="loading">正在获取航线数据...</div>
         </main>
     </div>
+
     <script>
-    window.onload = function() {
-        var map = new AMap.Map('amap', {
-            zoom: 4,
-            center: [130, 30]
-        });
+        // Port code lookup table
+        const PORT_CODES = {
+            '上海': 'CNSHG', '上海港': 'CNSHG',
+            '广州': 'CNGZG', '广州港': 'CNGZG',
+            '天津': 'CNTXG', '天津港': 'CNTXG',
+            '青岛': 'CNTAO', '青岛港': 'CNTAO',
+            '宁波': 'CNNGB', '宁波港': 'CNNGB',
+            '大连': 'CNDLC', '大连港': 'CNDLC',
+            '深圳': 'CNSZX', '深圳港': 'CNSZX',
+            '厦门': 'CNXMN', '厦门港': 'CNXMN',
+            '东京': 'JPTYO', '东京港': 'JPTYO',
+            '横滨': 'JPYOK', '横滨港': 'JPYOK',
+            '大阪': 'JPOSA', '大阪港': 'JPOSA',
+            '神户': 'JPUKB', '神户港': 'JPUKB',
+            '釜山': 'KRPUS', '釜山港': 'KRPUS',
+            '新加坡': 'SGSIN', '新加坡港': 'SGSIN',
+            '洛杉矶': 'USLAX', '洛杉矶港': 'USLAX',
+            '鹿特丹': 'NLRTM', '鹿特丹港': 'NLRTM',
+            '汉堡': 'DEHAM', '汉堡港': 'DEHAM',
+            '悉尼': 'AUSYD', '悉尼港': 'AUSYD',
+            '伦敦': 'GBLON', '伦敦港': 'GBLON',
+            '日本': 'JPTYO', '韩国': 'KRPUS',
+            '美国': 'USLAX', '荷兰': 'NLRTM',
+            '德国': 'DEHAM', '澳大利亚': 'AUSYD',
+            '英国': 'GBLON'
+        };
+
+        let map = null;
         let currentPolyline = null;
         let currentMarkers = [];
-        const SHIPXY_API_KEY = '6c8062d94ced4347b4e05bfb418543b0';
-        
-        // 初始化Windy地图叠加功能
-        initWindyOverlay();
-        
-        // 港口名称到代码的映射表
-        const portNameToCodeMap = {
-            // 中国港口
-            '上海': 'CNSHG',
-            '上海港': 'CNSHG',
-            '广州': 'CNGZG',
-            '广州港': 'CNGZG',
-            '天津': 'CNTXG',
-            '天津港': 'CNTXG',
-            '青岛': 'CNTAO',
-            '青岛港': 'CNTAO',
-            '宁波': 'CNNGB',
-            '宁波港': 'CNNGB',
-            '大连': 'CNDLC',
-            '大连港': 'CNDLC',
-            '深圳': 'CNSZX',
-            '深圳港': 'CNSZX',
-            '厦门': 'CNXMN',
-            '厦门港': 'CNXMN',
-            
-            // 国际港口
-            '东京': 'JPTYO',
-            '东京港': 'JPTYO',
-            '日本': 'JPTYO', // 默认日本为东京港
-            '横滨': 'JPYOK',
-            '横滨港': 'JPYOK',
-            '大阪': 'JPOSA',
-            '大阪港': 'JPOSA',
-            '神户': 'JPUKB',
-            '神户港': 'JPUKB',
-            '釜山': 'KRPUS',
-            '釜山港': 'KRPUS',
-            '韩国': 'KRPUS', // 默认韩国为釜山港
-            '新加坡': 'SGSIN',
-            '新加坡港': 'SGSIN',
-            '洛杉矶': 'USLAX',
-            '洛杉矶港': 'USLAX',
-            '美国': 'USLAX', // 默认美国为洛杉矶港
-            '鹿特丹': 'NLRTM',
-            '鹿特丹港': 'NLRTM',
-            '荷兰': 'NLRTM', // 默认荷兰为鹿特丹港
-            '汉堡': 'DEHAM',
-            '汉堡港': 'DEHAM',
-            '德国': 'DEHAM', // 默认德国为汉堡港
-            '悉尼': 'AUSYD',
-            '悉尼港': 'AUSYD',
-            '澳大利亚': 'AUSYD', // 默认澳大利亚为悉尼港
-            '伦敦': 'GBLON',
-            '伦敦港': 'GBLON',
-            '英国': 'GBLON' // 默认英国为伦敦港
-        };
-        
-        // 根据港口名称获取代码
-        function getPortCode(portName) {
-            const code = portNameToCodeMap[portName.trim()];
-            return code || null;
+
+        // ─── Load Amap dynamically (key from backend) ──────────────────
+        async function loadMapAndInit() {
+            try {
+                // Fetch key from backend API (key never in HTML)
+                const configRes = await fetch('/api/config');
+                if (!configRes.ok) throw new Error('配置加载失败');
+                const config = await configRes.json();
+
+                await new Promise((resolve, reject) => {
+                    const script = document.createElement('script');
+                    script.src = `https://webapi.amap.com/maps?v=2.0&key=${config.amapKey}`;
+                    script.onload = resolve;
+                    script.onerror = () => reject(new Error('高德地图SDK加载失败'));
+                    document.head.appendChild(script);
+                });
+
+                initMap();
+            } catch (err) {
+                showMapError(err.message);
+            }
         }
-        
-        // 清理所有航线
+
+        function initMap() {
+            // Hide skeleton, init map
+            const skeleton = document.getElementById('map-skeleton');
+            if (skeleton) skeleton.remove();
+
+            map = new AMap.Map('amap', {
+                zoom: 4,
+                center: [130, 30],
+                mapStyle: 'amap://styles/dark'
+            });
+
+            initWindyOverlay();
+            // Load default route after map ready
+            setTimeout(loadDefaultRoute, 800);
+        }
+
+        function showMapError(msg) {
+            const skeleton = document.getElementById('map-skeleton');
+            if (skeleton) {
+                skeleton.classList.remove('skeleton');
+                skeleton.style.animation = 'none';
+                skeleton.style.background = 'rgba(14,19,54,0.9)';
+                skeleton.innerHTML = `
+                    <div class="skeleton-overlay">
+                        <div role="alert" class="error-banner">
+                            ⚠️ ${msg || '地图加载失败，请刷新页面重试'}
+                        </div>
+                        <button onclick="location.reload()" class="action-btn action-btn-primary"
+                                style="margin-top:12px;">刷新页面</button>
+                    </div>
+                `;
+            }
+        }
+
+        // ─── Route Operations ──────────────────────────────────────────────
+        function getPortCode(name) {
+            return PORT_CODES[name.trim()] || null;
+        }
+
         function clearRoute() {
-            if(currentPolyline) { 
-                if(Array.isArray(currentPolyline)) {
+            if (currentPolyline) {
+                if (Array.isArray(currentPolyline)) {
                     currentPolyline.forEach(pl => map.remove(pl));
                 } else {
                     map.remove(currentPolyline);
                 }
-                currentPolyline = null; 
+                currentPolyline = null;
             }
-            currentMarkers.forEach(m => map.remove(m)); 
+            currentMarkers.forEach(m => map.remove(m));
             currentMarkers = [];
-            document.getElementById('routeMsg').textContent = '航线已清理';
-            document.getElementById('totalDistance').textContent = '0';
-            document.getElementById('estimatedTime').textContent = '0';
+            setRouteMsg('航线已清理', false);
+            document.getElementById('totalDistance').textContent = '—';
+            document.getElementById('estimatedTime').textContent = '—';
         }
-        
-        // 从船讯网API获取航线数据
-        async function fetchRouteFromShipXY(startPortCode, endPortCode) {
-            document.getElementById('loading').classList.add('active');
-            try {
-                const url = `https://api.shipxy.com/apicall/v3/PlanRouteByPort?key=${SHIPXY_API_KEY}&start_port_code=${startPortCode}&end_port_code=${endPortCode}`;
-                const response = await fetch(url);
-                const data = await response.json();
-                
-                if (data.status !== 0) {
-                    throw new Error(`API错误: ${data.msg || '未知错误'} (状态码 ${data.status})`);
-                }
-                
-                return data.data;
-            } catch (error) {
-                console.error('获取航线数据失败:', error);
-                throw error;
-            } finally {
-                document.getElementById('loading').classList.remove('active');
+
+        async function fetchRoute(startCode, endCode) {
+            // Use cache if available
+            const cacheKey = `route_${startCode}_${endCode}`;
+            const cached = DeepSailCache.get(cacheKey);
+            if (cached) return cached;
+
+            // Call backend proxy (API key stays server-side)
+            const res = await fetch(`/api/route?start=${startCode}&end=${endCode}`);
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                throw new Error(err.error || `HTTP ${res.status}`);
             }
+            const data = await res.json();
+            if (data.status !== 0) throw new Error(data.msg || 'API错误');
+
+            // Cache for 1 hour
+            DeepSailCache.set(cacheKey, data.data, 3600 * 1000);
+            return data.data;
         }
-        
-        // 计算预估航行时间（按平均20节航速）
-        function calculateEstimatedTime(distance) {
-            // 20节 = 20海里/小时
-            const hoursNeeded = distance / 20;
-            const daysNeeded = hoursNeeded / 24;
-            return daysNeeded.toFixed(1);
-        }
-        
-        // 绘制航线
+
         function drawRoute(routeData) {
             clearRoute();
-            
-            if (!routeData || !routeData.route || routeData.route.length < 2) {
-                document.getElementById('routeMsg').textContent = '航线数据无效或航点不足';
+            if (!routeData?.route || routeData.route.length < 2) {
+                setRouteMsg('⚠️ 航线数据无效', true);
                 return;
             }
-            
-            // 转换坐标点格式
-            const path = routeData.route.map(point => [point.lng, point.lat]);
-            
-            // 创建起点和终点标记
-            const startMarker = new AMap.Marker({
-                position: path[0],
-                map: map,
-                icon: new AMap.Icon({
-                    size: new AMap.Size(24, 24),
-                    image: 'data:image/svg+xml;base64,' + btoa('<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"><circle cx="12" cy="12" r="10" fill="#00b4fc" stroke="#fff" stroke-width="2"/><circle cx="12" cy="12" r="5" fill="#fff"/></svg>')
-                }),
-                label: {
-                    content: '起点',
-                    direction: 'top'
-                }
+
+            const path = routeData.route.map(p => [p.lng, p.lat]);
+
+            const mkIcon = (color, size = 24) => new AMap.Icon({
+                size: new AMap.Size(size, size),
+                image: `data:image/svg+xml;base64,${btoa(`<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}"><circle cx="${size/2}" cy="${size/2}" r="${size/2-2}" fill="${color}" stroke="#fff" stroke-width="2"/></svg>`)}`
             });
-            
-            const endMarker = new AMap.Marker({
-                position: path[path.length - 1],
-                map: map,
-                icon: new AMap.Icon({
-                    size: new AMap.Size(24, 24),
-                    image: 'data:image/svg+xml;base64,' + btoa('<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"><circle cx="12" cy="12" r="10" fill="#ffd43b" stroke="#fff" stroke-width="2"/><circle cx="12" cy="12" r="5" fill="#fff"/></svg>')
-                }),
-                label: {
-                    content: '终点',
-                    direction: 'top'
-                }
+
+            const startM = new AMap.Marker({
+                position: path[0], map,
+                icon: mkIcon('#00b4fc'),
+                label: { content: '起点', direction: 'top' },
+                title: '起点'
             });
-            
-            currentMarkers.push(startMarker, endMarker);
-            
-            // 每隔几个点创建航点标记
-            const step = Math.max(1, Math.floor(path.length / 10)); // 最多显示约10个中间点
+            const endM = new AMap.Marker({
+                position: path[path.length - 1], map,
+                icon: mkIcon('#ffd43b'),
+                label: { content: '终点', direction: 'top' },
+                title: '终点'
+            });
+            currentMarkers.push(startM, endM);
+
+            // Intermediate waypoints
+            const step = Math.max(1, Math.floor(path.length / 8));
             for (let i = step; i < path.length - step; i += step) {
-                const marker = new AMap.Marker({
-                    position: path[i],
-                    map: map,
-                    icon: new AMap.Icon({
-                        size: new AMap.Size(8, 8),
-                        image: 'data:image/svg+xml;base64,' + btoa('<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8"><circle cx="4" cy="4" r="3" fill="#00b4fc" stroke="#fff" stroke-width="1"/></svg>')
-                    })
+                const m = new AMap.Marker({
+                    position: path[i], map,
+                    icon: mkIcon('#00b4fc', 8),
+                    title: `航点 ${i}`
                 });
-                currentMarkers.push(marker);
+                currentMarkers.push(m);
             }
-            
-            // 创建航线
+
             const polyline = new AMap.Polyline({
-                path: path,
-                strokeColor: '#00b4fc',
-                strokeWeight: 3,
-                strokeOpacity: 0.8,
-                strokeStyle: 'solid',
-                strokeDasharray: [10, 5],
-                lineJoin: 'round',
-                lineCap: 'round',
-                showDir: true,
-                dirColor: '#ffd43b'
+                path, strokeColor: '#00b4fc', strokeWeight: 3,
+                strokeOpacity: 0.85, lineJoin: 'round', lineCap: 'round',
+                strokeDasharray: [10, 5], showDir: true, dirColor: '#ffd43b'
             });
-            
             polyline.setMap(map);
             currentPolyline = polyline;
-            
-            // 更新距离和时间信息
-            document.getElementById('totalDistance').textContent = routeData.distance.toFixed(2);
-            document.getElementById('estimatedTime').textContent = calculateEstimatedTime(routeData.distance);
-            document.getElementById('routeMsg').textContent = '航线规划成功';
-            
-            // 自动缩放视野以适应整个航线
+
+            const dist = parseFloat(routeData.distance).toFixed(1);
+            const days = (routeData.distance / (20 * 24)).toFixed(1);
+            document.getElementById('totalDistance').textContent = dist;
+            document.getElementById('estimatedTime').textContent = days;
+
             map.setFitView([...currentMarkers, polyline]);
         }
-        
-        // 查询/绘制按钮事件
-        document.getElementById('drawRouteBtn').onclick = async function() {
-            const startPortName = document.getElementById('startPortName').value.trim();
-            const endPortName = document.getElementById('endPortName').value.trim();
-            const msg = document.getElementById('routeMsg');
-            
-            msg.textContent = '';
-            
-            if(!startPortName || !endPortName) {
-                msg.textContent = '请输入出发和目的港口名称';
+
+        function setRouteMsg(msg, isError = false) {
+            const el = document.getElementById('routeMsg');
+            el.textContent = msg;
+            el.style.color = isError ? '#e74c3c' : '#ffd43b';
+        }
+
+        // ─── Button Events ─────────────────────────────────────────────────
+        document.getElementById('drawRouteBtn').addEventListener('click', async () => {
+            const startName = document.getElementById('startPortName').value.trim();
+            const endName = document.getElementById('endPortName').value.trim();
+            if (!startName || !endName) {
+                setRouteMsg('⚠️ 请输入出发和目的港口', true);
                 return;
             }
-            
-            const startPortCode = getPortCode(startPortName);
-            const endPortCode = getPortCode(endPortName);
-            
-            if(!startPortCode) {
-                msg.textContent = `未找到港口"${startPortName}"的代码，请检查输入或使用已知港口名称`;
-                return;
-            }
-            
-            if(!endPortCode) {
-                msg.textContent = `未找到港口"${endPortName}"的代码，请检查输入或使用已知港口名称`;
-                return;
-            }
-            
+            const startCode = getPortCode(startName);
+            const endCode = getPortCode(endName);
+            if (!startCode) { setRouteMsg(`⚠️ 未找到港口"${startName}"`, true); return; }
+            if (!endCode) { setRouteMsg(`⚠️ 未找到港口"${endName}"`, true); return; }
+
+            const btn = document.getElementById('drawRouteBtn');
+            btn.disabled = true;
+            setRouteMsg('查询中...', false);
+
             try {
-                const routeData = await fetchRouteFromShipXY(startPortCode, endPortCode);
-                drawRoute(routeData);
-                msg.textContent = `已绘制从${startPortName}到${endPortName}的航线`;
-            } catch (error) {
-                msg.textContent = `获取航线失败: ${error.message}`;
+                const data = await fetchRoute(startCode, endCode);
+                drawRoute(data);
+                setRouteMsg(`✅ ${startName} → ${endName} 航线规划成功`);
+            } catch (err) {
+                setRouteMsg(`⚠️ 获取航线失败: ${err.message}`, true);
+            } finally {
+                btn.disabled = false;
             }
-        };
-        
-        // 清理航线按钮事件
-        document.getElementById('clearRouteBtn').onclick = clearRoute;
-        
-        // 页面加载时提供一些常用港口名称的示例
-        document.getElementById('sidebarContent').innerHTML = `
-            <strong>常用港口名称:</strong><br>
-            中国: 上海、广州、天津、青岛、宁波、大连、深圳、厦门<br>
-            日本: 东京、横滨、大阪、神户<br>
-            其他: 釜山(韩国)、新加坡、洛杉矶(美国)、鹿特丹(荷兰)、汉堡(德国)、悉尼(澳大利亚)、伦敦(英国)<br><br>
-            <strong>也可以直接输入国家名:</strong><br>
-            如"日本"="东京港", "美国"="洛杉矶港"
-        `;
-        
-        // 默认加载上海到广州的航线作为示例
-        setTimeout(async () => {
-            try {
-                document.getElementById('startPortName').value = '上海';
-                document.getElementById('endPortName').value = '广州';
-                const routeData = await fetchRouteFromShipXY('CNSHG', 'CNGZG');
-                drawRoute(routeData);
-            } catch (error) {
-                console.error('默认航线加载失败', error);
-                document.getElementById('routeMsg').textContent = '默认航线加载失败，请手动查询航线';
-            }
-        }, 1000);
-        
-        // 初始化Windy地图叠加功能
+        });
+
+        document.getElementById('clearRouteBtn').addEventListener('click', clearRoute);
+
+        // ─── Windy Overlay ─────────────────────────────────────────────────
         function initWindyOverlay() {
-            const weatherToggle = document.getElementById('weatherToggle');
-            const windyOverlay = document.getElementById('windyOverlay');
-            const windyControls = document.getElementById('windyControls');
-            const windyIframe = document.getElementById('windyIframe');
-            const opacitySlider = document.getElementById('opacitySlider');
-            
-            // 图层切换按钮
-            const windLayerBtn = document.getElementById('windLayerBtn');
-            const rainLayerBtn = document.getElementById('rainLayerBtn');
-            const tempLayerBtn = document.getElementById('tempLayerBtn');
-            const wavesLayerBtn = document.getElementById('wavesLayerBtn');
-            const syncMapBtn = document.getElementById('syncMapBtn');
-            
-            let isWindyVisible = false;
+            const toggle = document.getElementById('weatherToggle');
+            const overlay = document.getElementById('windyOverlay');
+            const controls = document.getElementById('windyControls');
+            const iframe = document.getElementById('windyIframe');
+            const slider = document.getElementById('opacitySlider');
+            let visible = false;
             let currentLayer = 'wind';
-            
-            // 切换气象图层显示/隐藏
-            weatherToggle.addEventListener('click', () => {
-                isWindyVisible = !isWindyVisible;
-                if (isWindyVisible) {
-                    windyOverlay.classList.add('active');
-                    weatherToggle.classList.add('active');
-                    weatherToggle.innerHTML = '<span id="weatherIcon">🌦️</span> 隐藏气象图层';
-                    windyControls.classList.add('active');
-                    // 启用鼠标事件，允许与Windy地图交互
-                    windyOverlay.style.pointerEvents = 'auto';
-                    // 同步地图位置
-                    syncWindyMap();
-                } else {
-                    windyOverlay.classList.remove('active');
-                    weatherToggle.classList.remove('active');
-                    weatherToggle.innerHTML = '<span id="weatherIcon">🌦️</span> 显示气象图层';
-                    windyControls.classList.remove('active');
-                    // 禁用鼠标事件，点击穿透到下方地图
-                    windyOverlay.style.pointerEvents = 'none';
-                }
+
+            function buildWindyUrl(layer) {
+                if (!map) return '';
+                const c = map.getCenter();
+                const z = map.getZoom();
+                return `https://embed.windy.com/embed2.html?lat=${c.lat}&lon=${c.lng}&zoom=${z}&level=surface&overlay=${layer}&product=ecmwf&menu=&message=&type=map&metricWind=default&metricTemp=%C2%B0C&radarRange=-1`;
+            }
+
+            toggle.addEventListener('click', () => {
+                visible = !visible;
+                overlay.classList.toggle('active', visible);
+                controls.classList.toggle('active', visible);
+                toggle.classList.toggle('active', visible);
+                toggle.setAttribute('aria-pressed', visible.toString());
+                toggle.textContent = visible ? '🌦️ 隐藏气象图层' : '🌦️ 显示气象图层';
+                overlay.style.pointerEvents = visible ? 'auto' : 'none';
+                if (visible) iframe.src = buildWindyUrl(currentLayer);
             });
-            
-            // 透明度滑块控制
-            opacitySlider.addEventListener('input', () => {
-                const opacity = opacitySlider.value / 100;
-                windyOverlay.style.opacity = opacity;
+
+            slider.addEventListener('input', () => {
+                overlay.style.opacity = slider.value / 100;
             });
-            
-            // 更新Windy地图图层
-            function updateWindyLayer(layer) {
-                currentLayer = layer;
-                const center = map.getCenter();
-                const zoom = map.getZoom();
-                const lat = center.lat;
-                const lng = center.lng;
-                
-                const windyUrl = `https://embed.windy.com/embed2.html?lat=${lat}&lon=${lng}&zoom=${zoom}&level=surface&overlay=${layer}&product=ecmwf&menu=&message=&marker=&calendar=&pressure=&type=map&location=coordinates&detail=&metricWind=default&metricTemp=%C2%B0C&radarRange=-1`;
-                
-                windyIframe.src = windyUrl;
-            }
-            
-            // 同步Windy地图位置与高德地图
-            function syncWindyMap() {
-                const center = map.getCenter();
-                const zoom = map.getZoom();
-                const lat = center.lat;
-                const lng = center.lng;
-                
-                const windyUrl = `https://embed.windy.com/embed2.html?lat=${lat}&lon=${lng}&zoom=${zoom}&level=surface&overlay=${currentLayer}&product=ecmwf&menu=&message=&marker=&calendar=&pressure=&type=map&location=coordinates&detail=&metricWind=default&metricTemp=%C2%B0C&radarRange=-1`;
-                
-                windyIframe.src = windyUrl;
-            }
-            
-            // 图层切换按钮事件
-            windLayerBtn.addEventListener('click', () => updateWindyLayer('wind'));
-            rainLayerBtn.addEventListener('click', () => updateWindyLayer('rain'));
-            tempLayerBtn.addEventListener('click', () => updateWindyLayer('temp'));
-            wavesLayerBtn.addEventListener('click', () => updateWindyLayer('waves'));
-            
-            // 同步地图按钮事件
-            syncMapBtn.addEventListener('click', syncWindyMap);
-            
-            // 监听高德地图移动结束事件，自动同步Windy地图位置
-            map.on('moveend', () => {
-                if (isWindyVisible) {
-                    // 添加延迟，避免频繁更新
-                    clearTimeout(window.syncTimeout);
-                    window.syncTimeout = setTimeout(syncWindyMap, 500);
-                }
+
+            const layerBtns = {
+                windLayerBtn: 'wind', rainLayerBtn: 'rain',
+                tempLayerBtn: 'temp', wavesLayerBtn: 'waves'
+            };
+            Object.entries(layerBtns).forEach(([id, layer]) => {
+                document.getElementById(id).addEventListener('click', () => {
+                    currentLayer = layer;
+                    if (visible) iframe.src = buildWindyUrl(layer);
+                });
             });
-        }
-    };
-    
-        // ----------- 侧栏灵动切换 ---------
-        const sidebar = document.getElementById('sidebar');
-        const sidebarToggleBtn = document.getElementById('sidebarToggleBtn');
-        const mainContent = document.getElementById('mainContent');
-        sidebarToggleBtn.onclick = () => {
-            if(sidebar.classList.contains('collapsed')){
-                sidebar.classList.remove('collapsed');
-                mainContent.classList.remove('expanded');
-                sidebarToggleBtn.textContent = '◀';
-            }else{
-                sidebar.classList.add('collapsed');
-                mainContent.classList.add('expanded');
-                sidebarToggleBtn.textContent = '▶';
+
+            document.getElementById('syncMapBtn').addEventListener('click', () => {
+                if (visible) iframe.src = buildWindyUrl(currentLayer);
+            });
+
+            // Debounce map move sync
+            if (map) {
+                let syncTimer;
+                map.on('moveend', () => {
+                    if (!visible) return;
+                    clearTimeout(syncTimer);
+                    syncTimer = setTimeout(() => { iframe.src = buildWindyUrl(currentLayer); }, 600);
+                });
             }
-        };
-        // 顶栏自动隐藏功能
-        const navbar = document.getElementById('navbar');
-        const navbarToggle = document.getElementById('navbarToggle');
-        let isNavbarVisible = false;
-        function hideNavbar() {
-            navbar.classList.add('hidden');
-            navbarToggle.classList.remove('hidden');
-            isNavbarVisible = false;
-            navbarToggle.textContent = '▼';
         }
-        function showNavbar() {
-            navbar.classList.remove('hidden');
-            navbarToggle.classList.remove('hidden');
-            isNavbarVisible = true;
-            navbarToggle.textContent = '▲';
-        }
-        navbarToggle.addEventListener('click', () => {
-            if (isNavbarVisible) {
-                hideNavbar();
-            } else {
-                showNavbar();
+
+        // ─── Default Route ─────────────────────────────────────────────────
+        async function loadDefaultRoute() {
+            document.getElementById('startPortName').value = '上海';
+            document.getElementById('endPortName').value = '广州';
+            try {
+                const data = await fetchRoute('CNSHG', 'CNGZG');
+                drawRoute(data);
+            } catch {
+                setRouteMsg('默认航线加载失败，请手动查询', true);
             }
-        });
-        document.addEventListener('DOMContentLoaded', () => {
-        hideNavbar();
-        });
+        }
+
+        // ─── Start ─────────────────────────────────────────────────────────
+        window.addEventListener('load', loadMapAndInit);
     </script>
 </body>
-</html> 
+</html>

@@ -1,0 +1,43 @@
+{
+  "name": "DeepSail 远洋导航系统",
+  "short_name": "DeepSail",
+  "description": "远洋气象导航系统 - 实时航线监控、气象预报与港口信息",
+  "start_url": "/index.html",
+  "display": "standalone",
+  "background_color": "#0e1336",
+  "theme_color": "#00b4fc",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "pictures/图片1.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "pictures/图片1.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "categories": ["navigation", "weather", "travel"],
+  "lang": "zh-CN",
+  "shortcuts": [
+    {
+      "name": "航线监控",
+      "url": "/route.html",
+      "description": "查看实时航线监控"
+    },
+    {
+      "name": "气象预报",
+      "url": "/weather.html",
+      "description": "查看海洋气象信息"
+    },
+    {
+      "name": "港口信息",
+      "url": "/port.html",
+      "description": "查看全球港口动态"
+    }
+  ]
+}
