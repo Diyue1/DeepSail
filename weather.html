@@ -197,8 +197,19 @@
 
         .weather-panel {
             display: none; position: absolute; inset: 0;
+            opacity: 0;
         }
-        .weather-panel.active { display: flex; flex-direction: column; }
+        .weather-panel.active {
+            display: flex; flex-direction: column;
+            animation: panelFadeIn 0.3s ease forwards;
+        }
+        @keyframes panelFadeIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .weather-panel.active { animation: none; opacity: 1; }
+        }
 
         /* Iframe with lazy load and skeleton */
         .panel-iframe-container {

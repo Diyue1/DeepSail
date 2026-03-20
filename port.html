@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="DeepSail 港口信息 - 全球主要港口与船舶实时动态追踪">
     <meta name="theme-color" content="#00b4fc">
+    <!-- Fallback API key used when backend server is not running -->
+    <meta name="amap-key" content="97936dbf33c7b24831d89ce6e9adc1b9">
     <title>港口信息 - DeepSail 远洋导航</title>
 
     <link rel="manifest" href="/manifest.json">
@@ -158,7 +160,7 @@
 
         /* ── Iframe header ── */
         .iframe-header {
-            background: rgba(24,32,61,0.95);
+            background: linear-gradient(135deg, rgba(14,19,54,0.98) 0%, rgba(24,36,74,0.98) 100%);
             color: #fff;
             padding: 12px 16px;
             border-radius: 10px 10px 0 0;
@@ -168,29 +170,42 @@
             flex-wrap: wrap;
             gap: 8px;
             flex-shrink: 0;
+            border-bottom: 1px solid rgba(0,180,252,0.25);
+            box-shadow: 0 2px 12px rgba(0,0,0,0.3);
         }
         .iframe-header h2 {
             margin: 0; font-size: 16px; color: #00b4fc;
+            display: flex; align-items: center; gap: 8px;
+            text-shadow: 0 0 10px rgba(0,180,252,0.4);
         }
         .iframe-controls { display: flex; gap: 6px; flex-wrap: wrap; }
         .region-btn {
-            background: rgba(24,32,61,0.85);
+            background: rgba(255,255,255,0.04);
             color: #adb5bd;
-            border: 1px solid rgba(0,180,252,0.2);
-            border-radius: 14px;
+            border: 1px solid rgba(0,180,252,0.18);
+            border-radius: 16px;
             padding: 5px 14px;
             cursor: pointer; font-size: 13px;
             transition: all 0.2s;
+            display: flex; align-items: center; gap: 4px;
         }
-        .region-btn:hover, .region-btn:focus {
-            background: rgba(0,180,252,0.2);
+        .region-btn:hover {
+            background: rgba(0,180,252,0.12);
             color: #fff;
-            outline: 2px solid #00b4fc;
+            border-color: rgba(0,180,252,0.5);
+            transform: translateY(-1px);
+            box-shadow: 0 3px 10px rgba(0,180,252,0.15);
         }
+        .region-btn:focus {
+            outline: 2px solid #00b4fc; outline-offset: 2px;
+        }
+        .region-btn:active { transform: scale(0.96); }
         .region-btn.active-region {
-            background: linear-gradient(90deg, #2563eb 0%, #00b4fc 100%);
+            background: linear-gradient(135deg, #1a52c4 0%, #00b4fc 100%);
             color: #ffd43b;
             border-color: #00b4fc;
+            font-weight: 600;
+            box-shadow: 0 2px 10px rgba(0,180,252,0.3);
         }
 
         /* ── Map area ── */
@@ -328,15 +343,15 @@
                     <h2>🛳️ 船舶港口追踪系统</h2>
                     <div class="iframe-controls" role="group" aria-label="区域选择">
                         <button id="asia-btn" class="region-btn active-region"
-                                aria-pressed="true" onclick="loadRegion('asia')">亚洲</button>
+                                aria-pressed="true" onclick="loadRegion('asia')">🌏 亚洲</button>
                         <button id="europe-btn" class="region-btn"
-                                aria-pressed="false" onclick="loadRegion('europe')">欧洲</button>
+                                aria-pressed="false" onclick="loadRegion('europe')">🌍 欧洲</button>
                         <button id="americas-btn" class="region-btn"
-                                aria-pressed="false" onclick="loadRegion('americas')">美洲</button>
+                                aria-pressed="false" onclick="loadRegion('americas')">🌎 美洲</button>
                         <button id="global-btn" class="region-btn"
-                                aria-pressed="false" onclick="loadRegion('global')">全球</button>
+                                aria-pressed="false" onclick="loadRegion('global')">🌐 全球</button>
                         <button id="ports-btn" class="region-btn"
-                                aria-pressed="false" onclick="loadRegion('ports')">主要港口</button>
+                                aria-pressed="false" onclick="loadRegion('ports')">⚓ 主要港口</button>
                     </div>
                 </div>
 
@@ -401,38 +416,53 @@
         let infoWindow = null;
 
         // ─── Load Amap dynamically ─────────────────────────────────────────
+        // Tries backend first for key security; falls back to meta tag key
         async function loadMapAndInit() {
-            try {
-                const configRes = await fetch('/api/config');
-                if (!configRes.ok) throw new Error('配置加载失败');
-                const config = await configRes.json();
+            let amapKey = document.querySelector('meta[name="amap-key"]')?.content;
 
+            try {
+                const ctrl = new AbortController();
+                const timer = setTimeout(() => ctrl.abort(), 2000);
+                const configRes = await fetch('/api/config', { signal: ctrl.signal });
+                clearTimeout(timer);
+                if (configRes.ok) {
+                    const cfg = await configRes.json();
+                    if (cfg.amapKey) amapKey = cfg.amapKey;
+                }
+            } catch { /* backend not running – use fallback key */ }
+
+            if (!amapKey) { showMapError('地图密钥未配置'); return; }
+
+            try {
                 await new Promise((resolve, reject) => {
+                    if (window.AMap) { resolve(); return; }
                     const script = document.createElement('script');
-                    script.src = `https://webapi.amap.com/maps?v=2.0&key=${config.amapKey}`;
+                    script.src = `https://webapi.amap.com/maps?v=2.0&key=${amapKey}`;
                     script.onload = resolve;
-                    script.onerror = () => reject(new Error('高德地图SDK加载失败'));
+                    script.onerror = () => reject(new Error('高德地图SDK加载失败，请检查网络'));
                     document.head.appendChild(script);
                 });
-
                 initMap();
             } catch (err) {
-                const skeleton = document.getElementById('map-skeleton');
-                if (skeleton) {
-                    skeleton.classList.remove('skeleton');
-                    skeleton.style.animation = 'none';
-                    skeleton.style.background = 'rgba(14,19,54,0.9)';
-                    skeleton.innerHTML = `
-                        <div role="alert" style="color:#e74c3c;font-size:14px;text-align:center;padding:20px;">
-                            ⚠️ ${err.message || '地图加载失败'}
-                            <br><br>
-                            <button onclick="location.reload()" style="
-                                padding:8px 20px;background:#00b4fc;border:none;border-radius:20px;
-                                color:#fff;cursor:pointer;font-size:13px;">刷新页面</button>
-                        </div>
-                    `;
-                }
+                showMapError(err.message);
             }
+        }
+
+        function showMapError(msg) {
+            const skeleton = document.getElementById('map-skeleton');
+            if (!skeleton) return;
+            skeleton.classList.remove('skeleton');
+            skeleton.style.animation = 'none';
+            skeleton.style.background = 'rgba(14,19,54,0.9)';
+            skeleton.innerHTML = `
+                <div role="alert" style="color:#e74c3c;font-size:14px;text-align:center;padding:20px;">
+                    ⚠️ ${msg || '地图加载失败'}
+                    <br><br>
+                    <button onclick="location.reload()" style="
+                        padding:8px 20px;background:#00b4fc;border:none;border-radius:20px;
+                        color:#fff;cursor:pointer;font-size:13px;">刷新页面</button>
+                </div>
+            `;
         }
 
         function initMap() {
